@@ -23,6 +23,27 @@ URLencodeNCBI <- function(x) {
 }
 
 
+#' SavePNGandSVG
+#'
+#' Auto-generated roxygen skeleton for comparatome.
+#' Part of the helpers family.
+#' @param p (auto) parameter
+#' @param fpath (auto) parameter
+#' @param fname (auto) parameter
+#' @return (auto) value; see function body.
+#' @keywords internal
+#' @family helpers
+#' @examples
+#' \dontrun{
+#'  # Example usage will be added
+#' }
+SavePNGandSVG <- function(p, fpath, fname) {
+  for (ft in c(".png", ".svg")) {
+    ggsave(paste0(fpath, fname, ft), plot = p)
+  }
+}
+
+
 #' make_folder
 #'
 #' Auto-generated roxygen skeleton for comparatome.
