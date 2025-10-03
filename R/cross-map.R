@@ -1,7 +1,7 @@
 #' MapObjects
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping family.
+#' Part of the mapping family.
 #' @param seurat_obj1 (auto) parameter
 #' @param seurat_obj2 (auto) parameter
 #' @param idents (auto) parameter
@@ -60,7 +60,7 @@ MapObjects <- function(seurat_obj1, seurat_obj2, idents, assay = "SCT") {
 #' MapObject
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping family.
+#' Part of the mapping family.
 #' @param seurat_obj1 (auto) parameter
 #' @param seurat_obj2 (auto) parameter
 #' @param idents (auto) parameter
@@ -115,7 +115,7 @@ MapObject <- function(seurat_obj1, seurat_obj2, idents, assay = "SCT", do.norm =
 #' PlotMapping
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping family.
+#' Part of the mapping family.
 #' @param objs (auto) parameter
 #' @param idents (auto) parameter
 #' @return (auto) value; see function body.

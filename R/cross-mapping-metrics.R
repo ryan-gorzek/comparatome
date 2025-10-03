@@ -1,7 +1,7 @@
 #' PlotMappedLabelsHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping-metrics family.
+#' Part of the mapping-metrics family.
 #' @param data (auto) parameter
 #' @param column_name (auto) parameter
 #' @param column_levels (auto) parameter
@@ -131,7 +131,7 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
 #' PlotSubsampledMappedLabelsHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping-metrics family.
+#' Part of the mapping-metrics family.
 #' @param true.labels (auto) parameter
 #' @param pred.labels (auto) parameter
 #' @param column_levels (auto) parameter
@@ -265,7 +265,7 @@ PlotSubsampledMappedLabelsHeatmap <- function(true.labels, pred.labels, column_l
 #' PlotMappingQualityHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping-metrics family.
+#' Part of the mapping-metrics family.
 #' @param data (auto) parameter
 #' @param column_name (auto) parameter
 #' @param column_levels (auto) parameter
@@ -387,7 +387,7 @@ PlotMappingQualityHeatmap <- function(data, column_name, column_levels, value_co
 #' MappingAccuracy
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the mapping-metrics family.
+#' Part of the mapping-metrics family.
 #' @param data (auto) parameter
 #' @param column_name (auto) parameter
 #' @return (auto) value; see function body.

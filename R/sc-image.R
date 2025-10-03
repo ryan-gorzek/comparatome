@@ -1,7 +1,7 @@
 #' PlotImageDimGradient
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the spatial-plotting family.
+#' Part of the spatial-plotting family.
 #' @param obj (auto) parameter
 #' @param rgb_csv (auto) parameter
 #' @param ratio (auto) parameter
@@ -53,7 +53,7 @@ PlotImageDimGradient <- function(obj, rgb_csv, ratio = 1, size = 2, yticks = NA)
 #' PlotImageDimClusters
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the spatial-plotting family.
+#' Part of the spatial-plotting family.
 #' @param seurat_obj (auto) parameter
 #' @param ident (auto) parameter
 #' @param colors_list (auto) parameter
@@ -92,7 +92,7 @@ PlotImageDimClusters <- function(seurat_obj, ident = "seurat_clusters", colors_l
 #' MapGenes
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the spatial-plotting family.
+#' Part of the spatial-plotting family.
 #' @param obj (auto) parameter
 #' @param mapping_path (auto) parameter
 #' @param use_ids (auto) parameter

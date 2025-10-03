@@ -1,7 +1,7 @@
 #' PreprocessData
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the preprocess family.
+#' Part of the preprocess family.
 #' @param sample_IDs (auto) parameter
 #' @param data_path (auto) parameter
 #' @param project_name (auto) parameter
@@ -101,7 +101,7 @@ PreprocessData <- function(sample_IDs, data_path, project_name, mapping_path, ge
 #' NormalizeAndPCA
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the preprocess family.
+#' Part of the preprocess family.
 #' @param obj (auto) parameter
 #' @param nfeatures (auto) parameter
 #' @param npcs (auto) parameter
@@ -133,7 +133,7 @@ NormalizeAndPCA <- function(obj, nfeatures = 3000, npcs = 30, features = NA) {
 #' PlotQC
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the preprocess family.
+#' Part of the preprocess family.
 #' @param data (auto) parameter
 #' @return (auto) value; see function body.
 #' @export

@@ -1,7 +1,7 @@
 #' IntegrateObjects
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the integration family.
+#' Part of the integration family.
 #' @param seurat_obj1 (auto) parameter
 #' @param seurat_obj2 (auto) parameter
 #' @param resolutions (auto) parameter
@@ -70,7 +70,7 @@ IntegrateObjects <- function(seurat_obj1, seurat_obj2, resolutions = 1, nfeature
 #' PlotIntegration
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the integration family.
+#' Part of the integration family.
 #' @param obj (auto) parameter
 #' @param integvar (auto) parameter
 #' @param integclust (auto) parameter

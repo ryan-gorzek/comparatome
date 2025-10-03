@@ -1,7 +1,7 @@
 #' PlotFeatures
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the visualization family.
+#' Part of the visualization family.
 #' @param obj (auto) parameter
 #' @param features (auto) parameter
 #' @return (auto) value; see function body.
@@ -29,7 +29,7 @@ PlotFeatures <- function(obj, features) {
 #' SaveDotPlots
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the visualization family.
+#' Part of the visualization family.
 #' @param obj (auto) parameter
 #' @param markers (auto) parameter
 #' @param subclass.labels (auto) parameter
@@ -118,7 +118,7 @@ SaveDotPlots <- function(obj, markers, subclass.labels, ident.labels, savepath, 
 #' SaveFeaturePlots
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the visualization family.
+#' Part of the visualization family.
 #' @param obj (auto) parameter
 #' @param markers (auto) parameter
 #' @param subclass.labels (auto) parameter
@@ -233,7 +233,7 @@ SaveFeaturePlots <- function(obj, markers, subclass.labels, ident.labels, savepa
 #' SaveFeaturePlotsByKMeans
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the visualization family.
+#' Part of the visualization family.
 #' @param obj (auto) parameter
 #' @param markers (auto) parameter
 #' @param polygon.coords (auto) parameter

@@ -1,7 +1,7 @@
 #' PCAProject
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the projection family.
+#' Part of the projection family.
 #' @param seurat_query (auto) parameter
 #' @param seurat_reference (auto) parameter
 #' @param reduction (auto) parameter
@@ -47,7 +47,7 @@ PCAProject <- function(seurat_query, seurat_reference, reduction = "pca") {
 #' MinDistance
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the projection family.
+#' Part of the projection family.
 #' @param seurat_obj (auto) parameter
 #' @param reference_df (auto) parameter
 #' @param pc1_colname (auto) parameter
@@ -89,7 +89,7 @@ MinDistance <- function(seurat_obj, reference_df, pc1_colname = "PC_1", pc2_coln
 #' PlotVarianceExplainedByPCs
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the projection family.
+#' Part of the projection family.
 #' @param seurat_objects (auto) parameter
 #' @param object_names (auto) parameter
 #' @param num_pcs (auto) parameter

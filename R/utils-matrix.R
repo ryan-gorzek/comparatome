@@ -1,7 +1,7 @@
 #' align_matrix
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @param mat (auto) parameter
 #' @param row_names (auto) parameter
 #' @param col_names (auto) parameter

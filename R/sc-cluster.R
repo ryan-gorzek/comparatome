@@ -1,7 +1,7 @@
 #' ClusterWithSCT
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the clustering family.
+#' Part of the clustering family.
 #' @param obj (auto) parameter
 #' @param resolutions (auto) parameter
 #' @return (auto) value; see function body.
@@ -30,7 +30,7 @@ ClusterWithSCT <- function(obj, resolutions) {
 #' PlotClusters
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the clustering family.
+#' Part of the clustering family.
 #' @param obj (auto) parameter
 #' @param group.id (auto) parameter
 #' @param save.plots (auto) parameter
@@ -105,7 +105,7 @@ PlotClusters <- function(obj, group.id, save.plots = FALSE) {
 #' RemoveCellsByUMAP
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the clustering family.
+#' Part of the clustering family.
 #' @param seurat_obj (auto) parameter
 #' @param umap1_range (auto) parameter
 #' @param umap2_range (auto) parameter

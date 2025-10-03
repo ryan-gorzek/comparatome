@@ -1,7 +1,7 @@
 #' PlotPCLoadingsCorrelation
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the components family.
+#' Part of the components family.
 #' @param seurat_objects (auto) parameter
 #' @param object_names (auto) parameter
 #' @param num_pcs (auto) parameter
@@ -51,7 +51,7 @@ PlotPCLoadingsCorrelation <- function(seurat_objects, object_names, num_pcs = 10
 #' PlotVarianceExplainedWithinSpecies
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the components family.
+#' Part of the components family.
 #' @param seurat_obj (auto) parameter
 #' @param species_names (auto) parameter
 #' @param num_pcs (auto) parameter
@@ -120,7 +120,7 @@ PlotVarianceExplainedWithinSpecies <- function(seurat_obj, species_names, num_pc
 #' PlotCCAFeatureLoadings
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the components family.
+#' Part of the components family.
 #' @param seurat_obj1 (auto) parameter
 #' @param seurat_obj2 (auto) parameter
 #' @return (auto) value; see function body.
@@ -162,7 +162,7 @@ PlotCCAFeatureLoadings <- function(seurat_obj1, seurat_obj2) {
 #' PlotElbowComparison
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the components family.
+#' Part of the components family.
 #' @param obj.mouse (auto) parameter
 #' @param obj.opossum (auto) parameter
 #' @param num.pcs (auto) parameter

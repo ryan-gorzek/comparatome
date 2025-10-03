@@ -1,7 +1,7 @@
 #' SaveIdentConfusionMatrices
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the ml-confusion family.
+#' Part of the ml-confusion family.
 #' @param obj (auto) parameter
 #' @param subclass.labels (auto) parameter
 #' @param ident.labels (auto) parameter
@@ -63,7 +63,7 @@ SaveIdentConfusionMatrices <- function(obj, subclass.labels, ident.labels, savep
 #' SaveSubclassConfusionMatrices
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the ml-confusion family.
+#' Part of the ml-confusion family.
 #' @param obj (auto) parameter
 #' @param subclass.cols (auto) parameter
 #' @param subclass.order (auto) parameter

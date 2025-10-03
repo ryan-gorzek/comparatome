@@ -1,7 +1,7 @@
 #' LabelCells
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the labeling family.
+#' Part of the labeling family.
 #' @param obj (auto) parameter
 #' @param subclass_resolution (auto) parameter
 #' @return (auto) value; see function body.
@@ -52,7 +52,7 @@ LabelCells <- function(obj, subclass_resolution) {
 #' LabelByNearestNeighbors
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the labeling family.
+#' Part of the labeling family.
 #' @param obj (auto) parameter
 #' @param ident (auto) parameter
 #' @param fraction (auto) parameter
@@ -146,7 +146,7 @@ LabelByNearestNeighbors <- function(obj, ident, fraction = 0.6, n.neighbors = 20
 #' IdentBySample
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the labeling family.
+#' Part of the labeling family.
 #' @param obj (auto) parameter
 #' @param y_limits (auto) parameter
 #' @return (auto) value; see function body.
@@ -234,7 +234,7 @@ IdentBySample <- function(obj, y_limits = c(0, 0.50)) {
 #' SubclassByIdent
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the labeling family.
+#' Part of the labeling family.
 #' @param obj (auto) parameter
 #' @param subclass.idx (auto) parameter
 #' @return (auto) value; see function body.

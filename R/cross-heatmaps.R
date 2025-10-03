@@ -1,7 +1,7 @@
 #' IntegratedClusterOverlapHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the integration-heatmaps family.
+#' Part of the integration-heatmaps family.
 #' @param integrated.obj (auto) parameter
 #' @param integvar.col (auto) parameter
 #' @param ident.col (auto) parameter
@@ -136,7 +136,7 @@ IntegratedClusterOverlapHeatmap <- function(integrated.obj, integvar.col, ident.
 #' IntegratedClusterMakeupHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the integration-heatmaps family.
+#' Part of the integration-heatmaps family.
 #' @param integrated.obj (auto) parameter
 #' @param integvar.col (auto) parameter
 #' @param ident.col (auto) parameter
@@ -236,7 +236,7 @@ IntegratedClusterMakeupHeatmap <- function(integrated.obj, integvar.col, ident.c
 #' IdentToIntegratedClusterHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the integration-heatmaps family.
+#' Part of the integration-heatmaps family.
 #' @param integrated.obj (auto) parameter
 #' @param integvar.col (auto) parameter
 #' @param ident.col (auto) parameter

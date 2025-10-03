@@ -1,7 +1,7 @@
 #' sort_idents
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @param vec (auto) parameter
 #' @return (auto) value; see function body.
 #' @keywords internal
@@ -27,7 +27,7 @@ sort_idents <- function(vec) {
 #' sort_by_reference
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @param vec (auto) parameter
 #' @param ref (auto) parameter
 #' @return (auto) value; see function body.

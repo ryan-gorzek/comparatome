@@ -1,7 +1,7 @@
 #' get_colors
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @return (auto) value; see function body.
 #' @keywords internal
 #' @family helpers

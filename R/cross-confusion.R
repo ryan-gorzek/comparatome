@@ -1,7 +1,7 @@
 #' PlotSubclassCrossConfusionMatrices
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the cross-confusion family.
+#' Part of the cross-confusion family.
 #' @param obj1 (auto) parameter
 #' @param obj2 (auto) parameter
 #' @param sample.name1 (auto) parameter
@@ -118,7 +118,7 @@ PlotSubclassCrossConfusionMatrices <- function(obj1, obj2, sample.name1, sample.
 #' PlotIdentCrossConfusionMatrices
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the cross-confusion family.
+#' Part of the cross-confusion family.
 #' @param obj1 (auto) parameter
 #' @param obj2 (auto) parameter
 #' @param sample.name1 (auto) parameter
@@ -279,7 +279,7 @@ PlotIdentCrossConfusionMatrices <- function(obj1, obj2, sample.name1, sample.nam
 #' create_ident_confusion_matrix_plot
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the cross-confusion family.
+#' Part of the cross-confusion family.
 #' @param confusion_matrix (auto) parameter
 #' @param sample.name1 (auto) parameter
 #' @param sample.name2 (auto) parameter
@@ -314,7 +314,7 @@ create_ident_confusion_matrix_plot <- function(confusion_matrix, sample.name1, s
 #' plot_ident_individual_confusion_matrices
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the cross-confusion family.
+#' Part of the cross-confusion family.
 #' @param confusion_matrices (auto) parameter
 #' @param n_valid_iters (auto) parameter
 #' @param sample.name1 (auto) parameter
@@ -360,7 +360,7 @@ plot_ident_individual_confusion_matrices <- function(confusion_matrices, n_valid
 #' create_confusion_matrix_plot
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the cross-confusion family.
+#' Part of the cross-confusion family.
 #' @param confusion_matrix (auto) parameter
 #' @param sample.name1 (auto) parameter
 #' @param sample.name2 (auto) parameter
@@ -396,7 +396,7 @@ create_confusion_matrix_plot <- function(confusion_matrix, sample.name1, sample.
 #' plot_individual_confusion_matrices
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the cross-confusion family.
+#' Part of the cross-confusion family.
 #' @param confusion_matrices (auto) parameter
 #' @param n_iters (auto) parameter
 #' @param sample.name1 (auto) parameter

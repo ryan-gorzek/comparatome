@@ -1,7 +1,7 @@
 #' PlotSubclassDEIntersectionTotalCDF
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param list (auto) parameter
 #' @param ortho_genes (auto) parameter
 #' @param subclass.order (auto) parameter
@@ -85,7 +85,7 @@ PlotSubclassDEIntersectionTotalCDF <- function(list, ortho_genes, subclass.order
 #' PlotSubclassDEIntersectionCDF
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter
@@ -196,7 +196,7 @@ PlotSubclassDEIntersectionCDF <- function(list1, list2, all_genes1, all_genes2, 
 #' PlotSubclassDEIntersectionCDFTopX
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter
@@ -287,7 +287,7 @@ PlotSubclassDEIntersectionCDFTopX <- function(list1, list2, all_genes1, all_gene
 #' PlotSubclassDEIntersectionScatter
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param sample.name1 (auto) parameter
@@ -370,7 +370,7 @@ PlotSubclassDEIntersectionScatter <- function(list1, list2, sample.name1, sample
 #' PlotSubclassDEIntersectionOverlapScatter
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter
@@ -500,7 +500,7 @@ PlotSubclassDEIntersectionOverlapScatter <- function(list1, list2, all_genes1, a
 #' PlotSubclassGeneCountCDFDiff
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param de_df_1 (auto) parameter
 #' @param de_df_2 (auto) parameter
 #' @param subclass_pairs (auto) parameter
@@ -573,7 +573,7 @@ PlotSubclassGeneCountCDFDiff <- function(de_df_1, de_df_2, subclass_pairs, subcl
 #' PlotPairwiseSubclassGeneCountCDFDifference
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-curves family.
+#' Part of the de-curves family.
 #' @param de_results_list_1 (auto) parameter
 #' @param de_results_list_2 (auto) parameter
 #' @param subclass_pairs (auto) parameter

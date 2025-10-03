@@ -1,7 +1,7 @@
 #' top_genes_two
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @param df (auto) parameter
 #' @param sort_column_asc (auto) parameter
 #' @param sort_column_desc (auto) parameter
@@ -28,7 +28,7 @@ top_genes_two <- function(df, sort_column_asc, sort_column_desc, idx) {
 #' top_genes_asc
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @param df (auto) parameter
 #' @param sort_column_asc (auto) parameter
 #' @param idx (auto) parameter
@@ -54,7 +54,7 @@ top_genes_asc <- function(df, sort_column_asc, idx) {
 #' top_genes_desc
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the helpers family.
+#' Part of the helpers family.
 #' @param df (auto) parameter
 #' @param sort_column_desc (auto) parameter
 #' @param idx (auto) parameter

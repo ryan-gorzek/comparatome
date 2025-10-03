@@ -1,7 +1,7 @@
 #' SubsampleObject
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the subsampling family.
+#' Part of the subsampling family.
 #' @param seurat_obj (auto) parameter
 #' @param metadata_col (auto) parameter
 #' @param cells_per_category (auto) parameter
@@ -47,7 +47,7 @@ SubsampleObject <- function(seurat_obj, metadata_col, cells_per_category) {
 #' SubsampleObjectMultipleIterations
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the subsampling family.
+#' Part of the subsampling family.
 #' @param seurat_obj (auto) parameter
 #' @param metadata_col (auto) parameter
 #' @param cells_per_category (auto) parameter
@@ -135,7 +135,7 @@ SubsampleObjectMultipleIterations <- function(seurat_obj, metadata_col, cells_pe
 #' SubsampleClasses
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the subsampling family.
+#' Part of the subsampling family.
 #' @param seurat_obj (auto) parameter
 #' @param meta_column (auto) parameter
 #' @return (auto) value; see function body.
@@ -171,7 +171,7 @@ SubsampleClasses <- function(seurat_obj, meta_column) {
 #' SplitObjectHalf
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the subsampling family.
+#' Part of the subsampling family.
 #' @param seurat_object (auto) parameter
 #' @param seed (auto) parameter
 #' @return (auto) value; see function body.
@@ -205,7 +205,7 @@ SplitObjectHalf <- function(seurat_object, seed = 123) {
 #' MatchDistribution
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the subsampling family.
+#' Part of the subsampling family.
 #' @param query_obj (auto) parameter
 #' @param reference_obj (auto) parameter
 #' @param n_samples (auto) parameter
@@ -271,7 +271,7 @@ MatchDistribution <- function(query_obj, reference_obj, n_samples = NULL) {
 #' ShuffleExpression
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the subsampling family.
+#' Part of the subsampling family.
 #' @param seurat_obj (auto) parameter
 #' @param metadata_column (auto) parameter
 #' @param assay (auto) parameter

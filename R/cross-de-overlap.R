@@ -1,7 +1,7 @@
 #' PlotIdentDEIntersection
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-overlap family.
+#' Part of the de-overlap family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter
@@ -98,7 +98,7 @@ PlotIdentDEIntersection <- function(list1, list2, all_genes1, all_genes2, sample
 #' SaveSubclassDEIntersectionGenes
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-overlap family.
+#' Part of the de-overlap family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter
@@ -191,7 +191,7 @@ SaveSubclassDEIntersectionGenes <- function(list1, list2, all_genes1, all_genes2
 #' PlotSubclassDEIntersectionHeatmap
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-overlap family.
+#' Part of the de-overlap family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter
@@ -307,7 +307,7 @@ PlotSubclassDEIntersectionHeatmap <- function(list1, list2, all_genes1, all_gene
 #' PlotSubclassDEIntersectionHeatmapTopX
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the de-overlap family.
+#' Part of the de-overlap family.
 #' @param list1 (auto) parameter
 #' @param list2 (auto) parameter
 #' @param all_genes1 (auto) parameter

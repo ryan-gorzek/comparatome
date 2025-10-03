@@ -1,7 +1,7 @@
 #' IdentMarkerDict
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the markers family.
+#' Part of the markers family.
 #' @param obj (auto) parameter
 #' @param subclass.labels (auto) parameter
 #' @param ident.labels (auto) parameter
@@ -53,7 +53,7 @@ IdentMarkerDict <- function(obj, subclass.labels, ident.labels, save.path) {
 #' SubclassMarkerDict
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the markers family.
+#' Part of the markers family.
 #' @param obj (auto) parameter
 #' @param subclass.labels (auto) parameter
 #' @param save.path (auto) parameter
@@ -88,7 +88,7 @@ SubclassMarkerDict <- function(obj, subclass.labels, save.path) {
 #' PlotIdentGeneCounts
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the markers family.
+#' Part of the markers family.
 #' @param nested_list (auto) parameter
 #' @param subclass (auto) parameter
 #' @param clustering_res (auto) parameter
@@ -143,7 +143,7 @@ PlotIdentGeneCounts <- function(nested_list, subclass, clustering_res) {
 #' PlotSubclassGeneCounts
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the markers family.
+#' Part of the markers family.
 #' @param nested_list (auto) parameter
 #' @param subclass.col (auto) parameter
 #' @param subclass.order (auto) parameter
@@ -201,7 +201,7 @@ PlotSubclassGeneCounts <- function(nested_list, subclass.col, subclass.order) {
 #' plotGeneFractions
 #'
 #' Auto-generated roxygen skeleton for comparatome.
-Part of the markers family.
+#' Part of the markers family.
 #' @param df (auto) parameter
 #' @param gene_list (auto) parameter
 #' @return (auto) value; see function body.
