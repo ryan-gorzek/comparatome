@@ -23,7 +23,7 @@ PreprocessData <- function(sample_IDs, data_path, project_name, mapping_path, ge
   
   for (sample in sample_IDs) {
     
-    temp.obj.path <- paste(data_path, sample, "/outs/filtered_feature_bc_matrix/", sep = "")
+    temp.obj.path <- paste0(data_path, sample)
     temp.obj.data <- Read10X(temp.obj.path, gene.column = gene.column)
     temp.obj <- CreateSeuratObject(counts = temp.obj.data, project = project_name)
     temp.obj$sample <- sample
@@ -33,7 +33,7 @@ PreprocessData <- function(sample_IDs, data_path, project_name, mapping_path, ge
   }
   
   if (length(objs) > 1) {
-  obj <- merge(objs[[1]], y = objs[2:length(objs)], add.cell.ids = sample_IDs, project = project_name)
+    obj <- merge(objs[[1]], y = objs[2:length(objs)], add.cell.ids = sample_IDs, project = project_name)
   } else { obj <- objs[[1]] }
   genes$pre.map <- rownames(obj)
   

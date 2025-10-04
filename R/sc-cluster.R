@@ -41,14 +41,14 @@ ClusterWithSCT <- function(obj, resolutions) {
 #' \dontrun{
 #'  # Example usage will be added
 #' }
-PlotClusters <- function(obj, group.id, save.plots = FALSE) {
+PlotClusters <- function(obj, group.id) {
   
   if (!missing(group.id)) {
     Idents(obj) <- group.id
   }
   obj$active.ident <- obj@active.ident
-  dimplot1 <- DimPlot(obj, reduction = "umap", label = TRUE, raster = FALSE) + NoLegend() + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
-  dimplot2 <- DimPlot(obj, reduction = "umap", group.by = "sample", raster = FALSE, shuffle = TRUE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
+  dimplot_cluster <- DimPlot(obj, reduction = "umap", label = TRUE, raster = FALSE) + NoLegend() + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
+  dimplot_sample <- DimPlot(obj, reduction = "umap", group.by = "sample", raster = FALSE, shuffle = TRUE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
   cluster.sample <- table(obj$sample, obj$active.ident) %>%
     as.data.frame.matrix() %>%
     rownames_to_column(var = "sample")
@@ -60,10 +60,10 @@ PlotClusters <- function(obj, group.id, save.plots = FALSE) {
       values_to = "count"
     )
   cluster.sample$cluster <- factor(cluster.sample$cluster, levels = unique(cluster.sample$cluster))
-  barplot1 <- ggplot(cluster.sample, aes(x=cluster, y=count, fill=sample)) +
+  barplot_sample <- ggplot(cluster.sample, aes(x=cluster, y=count, fill=sample)) +
     geom_bar(stat="identity") +
     theme_minimal()
-  dimplot3 <- DimPlot(obj, reduction = "umap", group.by = "predicted_doublets", raster = FALSE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
+  dimplot_doublet <- DimPlot(obj, reduction = "umap", group.by = "predicted_doublets", raster = FALSE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
   # Summarize doublets by cluster
   df <- obj[[]]
   df$active.ident <- obj@active.ident
@@ -72,33 +72,34 @@ PlotClusters <- function(obj, group.id, save.plots = FALSE) {
     dplyr::summarise(count = n()) %>%
     dplyr::mutate(fraction = count / sum(count))
   # Create the stacked bar plot
-  barplot2 <- ggplot(df_summary, aes(x = active.ident, y = fraction, fill = predicted_doublets)) +
+  barplot_doublet <- ggplot(df_summary, aes(x = active.ident, y = fraction, fill = predicted_doublets)) +
     geom_bar(stat = "identity") +
     labs(x = "Clusters", y = "Doublet Fraction", fill = "Value") +
     theme_minimal()
-  featplot1 <- FeaturePlot(obj, "nFeature_RNA", raster = FALSE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
-  vlnplot1 <- VlnPlot(obj, "nFeature_RNA")
-  featplot2 <- FeaturePlot(obj, "nCount_RNA", raster = FALSE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
-  vlnplot2 <- VlnPlot(obj, "nCount_RNA")
+  featplot_nfeature <- FeaturePlot(obj, "nFeature_RNA", raster = FALSE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
+  vlnplot_nfeature <- VlnPlot(obj, "nFeature_RNA")
+  featplot_ncount <- FeaturePlot(obj, "nCount_RNA", raster = FALSE) + xlim(-18, 18) + ylim(-18, 18) + coord_equal()
+  vlnplot_ncount <- VlnPlot(obj, "nCount_RNA")
   
-  print(dimplot1)
-  print(dimplot2)
-  print(barplot1)
-  print(dimplot3)
-  print(barplot2)
-  print(featplot1)
-  print(vlnplot1)
-  print(featplot2)
-  print(vlnplot2)
+  print(dimplot_cluster)
+  print(dimplot_sample)
+  print(barplot_sample)
+  print(dimplot_doublet)
+  print(barplot_doublet)
+  print(featplot_nfeature)
+  print(vlnplot_nfeature)
+  print(featplot_ncount)
+  print(vlnplot_ncount)
   
-  if (save.plots == TRUE){
-    ggsave("E:/Opossum_Paper/Figure S1/Opossum_All_Clusters.svg", plot = dimplot1)
-    ggsave("E:/Opossum_Paper/Figure S1/Opossum_All_Samples.svg", plot = dimplot2)
-    ggsave("E:/Opossum_Paper/Figure S1/Opossum_All_Samples_Bar.svg", plot = barplot1)
-    ggsave("E:/Opossum_Paper/Figure S1/Opossum_All_Doublets.svg", plot = dimplot3)
-    ggsave("E:/Opossum_Paper/Figure S1/Opossum_All_Doublets_Bar.svg", plot = barplot2)
-  }
-  
+  return(list(dimplot_cluster = dimplot_cluster,
+              dimplot_sample = dimplot_sample,
+              barplot_sample = barplot_sample,
+              dimplot_doublet = dimplot_doublet,
+              barplot_doublet = barplot_doublet,
+              featplot_nfeature = featplot_nfeature,
+              vlnplot_nfeature = vlnplot_nfeature,
+              featplot_ncount = featplot_ncount,
+              vlnplot_ncount = vlnplot_ncount))
 }
 
 
