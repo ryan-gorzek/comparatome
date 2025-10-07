@@ -1,20 +1,27 @@
 #' PreprocessData
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the preprocess family.
-#' @param sample_IDs (auto) parameter
-#' @param data_path (auto) parameter
-#' @param project_name (auto) parameter
-#' @param mapping_path (auto) parameter
-#' @param gene.column (auto) parameter
-#' @return (auto) value; see function body.
+#' Preprocess multiple 10X-like directories containing sn or scRNA-seq data.
+#' Each directory should exist within data_path and its name be included in sample_IDs.
+#' Directories must meet the criteria for Seurat v4's Read10X.
+#' @param data_path Path to the directory containing sample_IDs folder with RNA-seq data in 10X format.
+#' @param sample_IDs A character vector of folder names within data_path, each containing files meeting the requirements for Seurat v4's Read10X. Encoded as 'sample' in the metadata of the resulting Seurat object.
+#' @param project_name String passsed to the 'project' argument of CreateSeuratObject.
+#' @param mapping_path Path to a TXT file containing cross-species gene orthologs. Columns must be: 1. gene name (mapped to); 2. gene ID (matching column 1); 3. gene name (mapped from); 4. gene ID (matching column 3).
+#' @param gene.column Column number passed to the 'gene.column' argument of Read10X.
+#' @return List of pre- and post-filtered (standard cell and gene count criteria) objects and gene lists from all specified sample_IDs, with sample and project identifiiers, and Scrublet metadata.
 #' @export
 #' @family preprocess
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'  data_path <- paste0(dir.list$central, "samples/")
+#'  sample_IDs <- c('OpossumV1-3A', 'OpossumV1-3B', 'OpossumV1-4A', 'OpossumV1-4B')
+#'  mapping_path <- paste0(dir.list$central, "Opossum_Mouse_GeneMapping_EnsemblBioMart.txt")
+#'
+#'  data <- PreprocessData(data_path, sample_IDs, "Opossum_V1", mapping_path)
+#'
+#'  obj.opossum <- data$obj
 #' }
-PreprocessData <- function(sample_IDs, data_path, project_name, mapping_path, gene.column = 2) {
+PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = NA, gene.column = 2) {
   
   # Load the data.
   print("Loading 10x data...")
