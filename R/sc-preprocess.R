@@ -6,7 +6,7 @@
 #' @param data_path Path to the directory containing sample_IDs folder with RNA-seq data in 10X format.
 #' @param sample_IDs A character vector of folder names within data_path, each containing files meeting the requirements for Seurat v4's Read10X. Encoded as 'sample' in the metadata of the resulting Seurat object.
 #' @param project_name String passsed to the 'project' argument of CreateSeuratObject.
-#' @param mapping_path Path to a TXT file containing cross-species gene orthologs. Columns must be: 1. gene name (mapped to); 2. gene ID (matching column 1); 3. gene name (mapped from); 4. gene ID (matching column 3).
+#' @param mapping_path Path to a TXT file containing cross-species gene orthologs. Columns must be: 1. gene name (mapped from); 2. gene ID (matching column 1); 3. gene name (mapped to); 4. gene ID (matching column 3).
 #' @param gene.column Column number passed to the 'gene.column' argument of Read10X.
 #' @return List of pre- and post-filtered (standard cell and gene count criteria) objects and gene lists from all specified sample_IDs, with sample and project identifiiers, and Scrublet metadata.
 #' @export
