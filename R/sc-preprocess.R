@@ -6,7 +6,7 @@
 #' @param data_path Path to the directory containing sample_IDs folder with RNA-seq data in 10X format.
 #' @param sample_IDs A character vector of folder names within data_path, each containing files meeting the requirements for Seurat v4's Read10X. Encoded as 'sample' in the metadata of the resulting Seurat object.
 #' @param project_name String passsed to the 'project' argument of CreateSeuratObject.
-#' @param mapping_path Path to a TXT file containing cross-species gene orthologs. Columns must be: 1. gene name (mapped from); 2. gene ID (matching column 1); 3. gene name (mapped to); 4. gene ID (matching column 3).
+#' @param mapping_path Path to a TXT file containing cross-species gene orthologs. See documentation for MapGenes.
 #' @param gene.column Column number passed to the 'gene.column' argument of Read10X.
 #' @return List of pre- and post-filtered (standard cell and gene count criteria) objects and gene lists from all specified sample_IDs, with sample and project identifiiers, and Scrublet metadata.
 #' @export
@@ -23,11 +23,9 @@
 #' }
 PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = NA, gene.column = 2) {
   
-  # Load the data.
-  print("Loading 10x data...")
+  # Load data for each sample
+  print("Loading data...")
   objs <- c()
-  genes <- list()
-  
   for (sample in sample_IDs) {
     
     temp.obj.path <- paste0(data_path, sample)
@@ -38,70 +36,92 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
     objs <- append(objs, temp.obj)
     
   }
-  
+  # Combine samples into single Seurat object
   if (length(objs) > 1) {
     obj <- merge(objs[[1]], y = objs[2:length(objs)], add.cell.ids = sample_IDs, project = project_name)
-  } else { obj <- objs[[1]] }
-  genes$pre.map <- rownames(obj)
-  
-  # Map gene names/IDs if specified.
-  print("Mapping genes...")
-  if (!is.na(mapping_path)) {
-    genes.mapping <- read.csv(mapping_path)
-    para.idx <- genes.mapping$Gene.stable.ID %in% unique(genes.mapping$Gene.stable.ID[duplicated(genes.mapping$Gene.stable.ID)])
-    genes.mapping <- genes.mapping[!para.idx,]
-    genes.mapping.other <- as.list(genes.mapping[, 3])
-    genes.mapping.self <- as.list(genes.mapping[, 1])
-    ids.mapping.self <- as.list(genes.mapping[, 2])
-    genes.self <- rownames(obj)
-    for (gene in genes.mapping.other) {
-      
-      idx.other <- which(genes.mapping.other %in% gene)
-      
-      if (length(idx.other) == 1) {
-        
-        gene.self <- genes.mapping.self[idx.other]
-        id.self <- ids.mapping.self[idx.other]
-        
-        if (gene.self == "") {
-          
-          idx.self <- which(genes.self %in% id.self)
-          genes.self[idx.self] <- gene
-          
-        } else {
-          
-          idx.self <- which(genes.self %in% gene.self)
-          genes.self[idx.self] <- gene
-          
-        }
-      }
-    }
+  } else { 
+    obj <- objs[[1]] 
   }
-  else { genes.self <- rownames(obj) }
-  
-  # Rebuild Seurat object.
-  print("Rebuilding object...")
-  obj.df <- as.data.frame(as.matrix(obj[["RNA"]]@counts))
-  rownames(obj.df) <- genes.self
-  obj.temp <- CreateSeuratObject(counts = obj.df, meta.data = obj[[]])
-  obj <- obj.temp
-  genes$post.map <- rownames(obj)
-  
-  # Filter cells and genes.
+  # Store original gene names
+  genes <- list()
+  genes$pre.map <- rownames(obj)
+  # Map gene names/IDs if mapping_path is specified
+  if !is.na(mapping_path) {
+    obj <- MapGenes(obj, mapping_path)
+    genes$post.map <- rownames(obj)
+  }
+  # Filter cells and genes with standard critera (based on Cheng et al., Cell 2022)
   print("Filtering cells and genes...")
   obj.prefilt <- obj
   cell_mask <- Reduce(intersect,list(WhichCells(obj, expression = nFeature_RNA > 700),
                                      WhichCells(obj, expression = nFeature_RNA < 6500),
                                      WhichCells(obj, expression = nCount_RNA < 40000)))
-  
   gene_mask <- rownames(obj)[Matrix::rowSums(obj[["RNA"]]@counts > 0) > 8]
-  
   obj <- subset(obj, features = gene_mask, cells = cell_mask)
-  
+  # Store post-filtered gene names
   genes$post.filt <- rownames(obj)
-  
+  # Return list containing various objects
   return(list(obj = obj, obj.prefilt = obj.prefilt, genes = genes))
+}
+
+#' MapGenes
+#'
+#' Map gene names between species given a Seurat object to be mapped, and an orthology table.
+#' Orthology tables are most easily obtained from Ensembl BioMart. For an example, see:
+#' github.com/ryan-gorzek/opossum-V1-omics/blob/main/central/Opossum_Mouse_GeneMapping_EnsemblBioMart.txt
+#' Columns must be: 
+#'    1. Gene name (mapped from)
+#'    2. Gene ID (matching column 1)
+#'    3. Gene name (mapped to)
+#'    4. Gene ID (matching column 3)
+#' @param obj Seurat object with gene names/IDs to be mapped.
+#' @param mapping_path Path to a file containing a gene orthology table. See MapGenes description for formatting details.
+#' @param use_ids T/F parameter that specifies whether to rely on gene IDs for matching. Set to FALSE if you've built a custom mapping file without gene IDs.
+#' @return Seurat object with mapped gene names/IDs.
+#' @export
+#' @family sc-preprocess
+#' @examples
+#' \dontrun{
+#'  seurat.obj.opossum <- MapGenes(seurat.obj.opossum, ../Opossum_Mouse_GeneMapping_EnsemblBioMart.txt)
+#' }
+MapGenes <- function(obj, mapping_path, use_ids = TRUE) {
   
+  # Read the orthology table
+  genes.mapping <- read.csv(mapping_path)
+  # Remove paralogs (keeping the first)
+  para.idx <- genes.mapping[, 1] %in% unique(genes.mapping[duplicated(genes.mapping[, 1]), 1])
+  genes.mapping <- genes.mapping[!para.idx,]
+  # Store columns of interest separately
+  genes.mapping.self <- as.list(genes.mapping[, 1])
+  ids.mapping.self <- as.list(genes.mapping[, 2])
+  genes.mapping.other <- as.list(genes.mapping[, 3])
+  genes.self <- rownames(obj)
+  # Loop over genes (from 'other', which is mapped to) that have orthologs (i.e., exist in table)
+  for (gene in genes.mapping.other) {
+    # Find all entries that match current gene
+    idx.other <- which(genes.mapping.other %in% gene)
+    # Proceed only if there is a 1:1 mapping between 'other' gene and 'self' gene
+    if (length(idx.other) == 1) {
+      gene.self <- genes.mapping.self[idx.other]
+      id.self <- ids.mapping.self[idx.other]
+      # If gene is not named in 'self' (e.g., novel gene only known by ID) or use_IDs is T, map based on ID
+      if ((gene.self == "") | (use_ids == TRUE)) {
+        idx.self <- which(genes.self %in% id.self)
+        genes.self[idx.self] <- gene
+        # Otherwise, use gene name if it exists
+      } else if (gene.self != "") {
+        idx.self <- which(genes.self %in% gene.self)
+        genes.self[idx.self] <- gene
+      }
+    }
+  }
+  # Rebuild Seurat object
+  print("Rebuilding object...")
+  obj.df <- as.data.frame(as.matrix(obj[["RNA"]]@counts))
+  rownames(obj.df) <- genes.self
+  obj.temp <- CreateSeuratObject(counts = obj.df, meta.data = obj[[]])
+  obj <- obj.temp
+  return(obj)
 }
 
 
