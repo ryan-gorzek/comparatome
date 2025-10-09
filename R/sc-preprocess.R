@@ -46,7 +46,7 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
   genes <- list()
   genes$pre.map <- rownames(obj)
   # Map gene names/IDs if mapping_path is specified
-  if !is.na(mapping_path) {
+  if (!is.na(mapping_path)) {
     obj <- MapGenes(obj, mapping_path)
     genes$post.map <- rownames(obj)
   }
