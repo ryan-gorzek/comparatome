@@ -29,7 +29,7 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
   for (sample in sample_IDs) {
     
     temp.obj.path <- paste0(data_path, sample)
-    temp.obj.data <- Read10X(temp.obj.path, gene.column = gene.column)
+    temp.obj.data <- Read10X(temp.obj.path, gene.column = gene_column)
     temp.obj <- CreateSeuratObject(counts = temp.obj.data, project = project_name)
     temp.obj$sample <- sample
     temp.obj <- scrublet_R(seurat_obj = temp.obj)
@@ -47,6 +47,7 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
   genes$pre.map <- rownames(obj)
   # Map gene names/IDs if mapping_path is specified
   if (!is.na(mapping_path)) {
+    print("Mapping genes...")
     obj <- MapGenes(obj, mapping_path)
     genes$post.map <- rownames(obj)
   }
@@ -76,7 +77,7 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
 #'    4. Gene ID (matching column 3)
 #' @param obj Seurat object with gene names/IDs to be mapped.
 #' @param mapping_path Path to a file containing a gene orthology table. See MapGenes description for formatting details.
-#' @param use_ids T/F parameter that specifies whether to rely on gene IDs for matching. Set to FALSE if you've built a custom mapping file without gene IDs.
+#' @param use_ids T/F parameter that specifies whether to rely on gene IDs for matching. Default is FALSE, set to TRUE if your Seurat object's rownames consists entirely of gene IDs.
 #' @return Seurat object with mapped gene names/IDs.
 #' @export
 #' @family preprocess
@@ -84,7 +85,7 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
 #' \dontrun{
 #'  seurat.obj.opossum <- MapGenes(seurat.obj.opossum, ../Opossum_Mouse_GeneMapping_EnsemblBioMart.txt)
 #' }
-MapGenes <- function(obj, mapping_path, use_ids = TRUE) {
+MapGenes <- function(obj, mapping_path, use_ids = FALSE) {
   
   # Read the orthology table
   genes.mapping <- read.csv(mapping_path)
