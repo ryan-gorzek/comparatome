@@ -7,7 +7,7 @@
 #' @param sample_IDs A character vector of folder names within data_path, each containing files meeting the requirements for Seurat v4's Read10X. Encoded as 'sample' in the metadata of the resulting Seurat object.
 #' @param project_name String passsed to the 'project' argument of CreateSeuratObject.
 #' @param mapping_path Path to a TXT file containing cross-species gene orthologs. See documentation for MapGenes.
-#' @param gene.column Column number passed to the 'gene.column' argument of Read10X.
+#' @param gene_column Column number passed to the 'gene.column' argument of Read10X.
 #' @return List of pre- and post-filtered (standard cell and gene count criteria) objects and gene lists from all specified sample_IDs, with sample and project identifiiers, and Scrublet metadata.
 #' @export
 #' @family preprocess
@@ -21,7 +21,7 @@
 #'
 #'  obj.opossum <- data$obj
 #' }
-PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = NA, gene.column = 2) {
+PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = NA, gene_column = 2) {
   
   # Load data for each sample
   print("Loading data...")
@@ -79,7 +79,7 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
 #' @param use_ids T/F parameter that specifies whether to rely on gene IDs for matching. Set to FALSE if you've built a custom mapping file without gene IDs.
 #' @return Seurat object with mapped gene names/IDs.
 #' @export
-#' @family sc-preprocess
+#' @family preprocess
 #' @examples
 #' \dontrun{
 #'  seurat.obj.opossum <- MapGenes(seurat.obj.opossum, ../Opossum_Mouse_GeneMapping_EnsemblBioMart.txt)
@@ -159,15 +159,15 @@ NormalizeAndPCA <- function(obj, nfeatures = 3000, npcs = 30, features = NA) {
 
 #' PlotQC
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the preprocess family.
-#' @param data (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate standard quality control plots (# of genes, # of UMIs) from the output of PreprocessData.
+#' @param data Output from PreprocessData
+#' @return NA, prints plots
 #' @export
 #' @family preprocess
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'  data <- PreprocessData(data_path, sample_IDs, "Opossum_V1", mapping_path)
+#'  PlotQC(data)
 #' }
 PlotQC <- function(data) {
   
