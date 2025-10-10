@@ -1,14 +1,16 @@
 #' URLencodeNCBI
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the helpers family.
-#' @param x (auto) parameter
-#' @return (auto) value; see function body.
+#' Encode a string (filename) with NCBI URL encoding for programmatic download from Gene Expression Omnibus.
+#' R's standard URLencode function does not suffice.
+#' @param x String (typically filename) for programmatic download from NCBI Gene Expression Omnibus.
+#' @return String encoded for NCBI URLs.
 #' @keywords internal
 #' @family helpers
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'  url <- paste0("https://www.ncbi.nlm.nih.gov/geo/download/?acc=", samples.opossum[[sm]],
+#'                "&format=file&file=", URLencodeNCBI(fname))
+#'  system(paste0("wget -O ", fpath, " ", url))
 #' }
 URLencodeNCBI <- function(x) {
   b <- charToRaw(enc2utf8(x))
@@ -25,17 +27,28 @@ URLencodeNCBI <- function(x) {
 
 #' SavePNGandSVG
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the helpers family.
-#' @param p (auto) parameter
-#' @param fpath (auto) parameter
-#' @param fname (auto) parameter
-#' @return (auto) value; see function body.
+#' Saves a ggplot object as both PNG and SVG files to a specified directory.
+#' Automates exporting a plot in two formatsusing the same filename and output path. 
+#' Loops through the formats and calls [ggplot2::ggsave()] for each.
+#'
+#' @param p A ggplot object to be saved.
+#' @param fpath A string specifying the directory path where files will be saved. Must include a trailing slash (e.g., `"figures/"`).
+#' @param fname A string specifying the base filename (without file extension).
+#' @return Invisibly returns `NULL`. Files are written to disk as a side effect.
 #' @keywords internal
 #' @family helpers
+#' @importFrom ggplot2 ggsave
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'  obj.opossum <- ClusterWithSCT(obj.opossum, 1)
+#'  clust.plots <- PlotClusters(obj.opossum)
+#'  save.plots <- list("dimplot_cluster" = "S1E_All-Cluster-DimPlot",
+#'                     "dimplot_sample" = "S1F_All-Sample-DimPlot",
+#'                     "barplot_sample" = "S1G_All-Sample-BarPlot",
+#'                     "barplot_doublet" = "S1H_All-Doublet-BarPlot")
+#'  for (sp in names(save.plots)) {
+#'    SavePNGandSVG(clust.plots[[sp]], dir.list$figS1$plots, save.plots[[sp]])
+#'  }
 #' }
 SavePNGandSVG <- function(p, fpath, fname) {
   for (ft in c(".png", ".svg")) {

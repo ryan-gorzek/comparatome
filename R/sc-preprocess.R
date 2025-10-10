@@ -119,9 +119,7 @@ MapGenes <- function(obj, mapping_path, use_ids = TRUE) {
   print("Rebuilding object...")
   obj.df <- as.data.frame(as.matrix(obj[["RNA"]]@counts))
   rownames(obj.df) <- genes.self
-  obj.temp <- CreateSeuratObject(counts = obj.df, meta.data = obj[[]])
-  obj <- obj.temp
-  return(obj)
+  obj <- CreateSeuratObject(counts = obj.df, meta.data = obj[[]])
 }
 
 
@@ -161,7 +159,7 @@ NormalizeAndPCA <- function(obj, nfeatures = 3000, npcs = 30, features = NA) {
 #'
 #' Generate standard quality control plots (# of genes, # of UMIs) from the output of PreprocessData.
 #' @param data Output from PreprocessData
-#' @return NA, prints plots
+#' @return `NULL`. Prints plots as a side effect.
 #' @export
 #' @family preprocess
 #' @examples
