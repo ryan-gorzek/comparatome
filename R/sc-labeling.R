@@ -1,15 +1,48 @@
 #' LabelCells
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the labeling family.
-#' @param obj (auto) parameter
-#' @param subclass_resolution (auto) parameter
-#' @return (auto) value; see function body.
+#' Assign final subclass and type labels to cells based on their clustering at specified resolutions.
+#' For each subclass, cells are labeled with that subclass name, and types are assigned by ordering
+#' clusters by size (largest cluster becomes [subclass]_1, second largest becomes [subclass]_2, etc.).
+#'
+#' @param obj Seurat object with metadata columns formatted as "subclass.[resolution]" and "SCT_snn_res.[resolution]"
+#' @param subclass_resolution Named list where names are subclass labels and values are clustering resolutions 
+#'   (e.g., list(IT_A = 0.5, L5PT = 1.5)). The resolution indicates which clustering result to use for type assignment.
+#'
+#' @return Seurat object with three new metadata columns:
+#' \itemize{
+#'   \item subclass: The subclass label (e.g., "IT_A", "Pvalb")
+#'   \item type: Subclass + cluster rank (e.g., "IT_A_1", "Pvalb_2")
+#'   \item subclass.type: Copy of subclass label
+#' }
+#'
+#' @details
+#' The function operates by:
+#' \enumerate{
+#'   \item For each subclass-resolution pair, identifying cells with that subclass assignment
+#'   \item Extracting cluster identities from the specified resolution
+#'   \item Ranking clusters by cell count (descending)
+#'   \item Assigning type labels as [subclass]_[rank]
+#' }
+#'
+#' If a subclass contains only one cluster, type label equals subclass label.
+#' Issues a warning if any NAs are present in the final type column.
+#'
 #' @export
 #' @family labeling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # After running SubclassByIdent to assign subclasses at multiple resolutions
+#'   subclass.resolutions <- rev(list(
+#'     IT_A = 0.5,
+#'     IT_B = 0.5,
+#'     L5PT = 1.5,
+#'     L6CT = 1.5
+#'   ))
+#'   obj <- LabelCells(obj, subclass.resolutions)
+#'   
+#'   # Check results
+#'   table(obj$subclass, obj$type)
 #' }
 LabelCells <- function(obj, subclass_resolution) {
 
@@ -51,18 +84,48 @@ LabelCells <- function(obj, subclass_resolution) {
 
 #' LabelByNearestNeighbors
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the labeling family.
-#' @param obj (auto) parameter
-#' @param ident (auto) parameter
-#' @param fraction (auto) parameter
-#' @param n.neighbors (auto) parameter
-#' @return (auto) value; see function body.
+#' Propagate labels to unlabeled cells based on UMAP nearest neighbor voting.
+#' For cells marked as "None" in the specified identity column, this function finds their 
+#' k nearest neighbors in UMAP space and assigns labels if a sufficient fraction of 
+#' neighbors agree on the label.
+#'
+#' @param obj Seurat object with UMAP reduction and existing labels
+#' @param ident Character, name of metadata column containing labels (with some cells marked "None")
+#' @param fraction Numeric, minimum fraction of neighbors required to agree for label assignment (default: 0.6)
+#' @param n.neighbors Integer, number of nearest neighbors to consider for voting (default: 20)
+#'
+#' @return Seurat object with new metadata column named [ident]_nn containing propagated labels.
+#'   Cells that were originally labeled remain NA in the new column.
+#'   Cells that don't meet the threshold remain "None".
+#'
+#' @details
+#' Label propagation workflow:
+#' \enumerate{
+#'   \item Extract UMAP coordinates for all cells
+#'   \item Identify labeled vs unlabeled cells (unlabeled = "None")
+#'   \item For each unlabeled cell, find k nearest neighbors using FNN::get.knnx
+#'   \item Calculate the fraction of neighbors with each label
+#'   \item If the top label exceeds the threshold, assign it; otherwise keep "None"
+#' }
+#'
+#' Requires the FNN package for efficient nearest neighbor search.
+#' Originally labeled cells receive NA in the output column.
+#'
 #' @export
 #' @family labeling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # After partial labeling, propagate to ambiguous cells
+#'   obj <- LabelByNearestNeighbors(
+#'     obj, 
+#'     ident = "subclass",
+#'     fraction = 0.7,  # Require 70% agreement
+#'     n.neighbors = 30
+#'   )
+#'   
+#'   # Check how many cells were labeled
+#'   table(obj$subclass_nn)
 #' }
 LabelByNearestNeighbors <- function(obj, ident, fraction = 0.6, n.neighbors = 20) {
   
@@ -145,16 +208,34 @@ LabelByNearestNeighbors <- function(obj, ident, fraction = 0.6, n.neighbors = 20
 
 #' IdentBySample
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the labeling family.
-#' @param obj (auto) parameter
-#' @param y_limits (auto) parameter
-#' @return (auto) value; see function body.
+#' Plot relative proportions of each identity (cluster/subclass/type) across samples.
+#' Creates a bar plot showing median proportions with individual sample values as scatter points.
+#'
+#' @param obj Seurat object with 'sample' metadata and active identity set
+#' @param y_limits Numeric vector of length 2 specifying y-axis limits (default: c(0, 0.50))
+#'
+#' @return NULL (plots are printed directly). Generates a ggplot2 bar plot with:
+#' \itemize{
+#'   \item Bars showing median proportion of each identity across samples
+#'   \item Points showing individual sample values
+#'   \item Percentage labels above bars
+#' }
+#'
+#' @details
+#' For each identity level and sample, calculates the proportion of cells.
+#' Then computes median proportion across samples for plotting.
+#' Drops cells with NA in the active identity and warns if any are found.
+#' Identity order is taken from the Seurat object's levels.
+#'
 #' @export
 #' @family labeling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Plot subclass proportions
+#'   Idents(obj) <- "subclass"
+#'   levels(obj) <- c("IT_A", "IT_B", "L5PT", "L6CT")
+#'   IdentBySample(obj, y_limits = c(0, 0.60))
 #' }
 IdentBySample <- function(obj, y_limits = c(0, 0.50)) {
   
@@ -165,7 +246,7 @@ IdentBySample <- function(obj, y_limits = c(0, 0.50)) {
   specified_order <- levels(obj)
 
   # Check for NAs and warn the user
-  na_samples <- df %>% filter(is.na(active.ident)) %>% count(smpl)
+  na_samples <- df %>% filter(is.na(active.ident)) %>% dplyr::count(smpl)
   if(nrow(na_samples) > 0) {
     warning("The following samples contained NAs and were dropped: ",
             paste(na_samples$sample, " (", na_samples$n, ")", collapse = "\n"))
@@ -185,7 +266,7 @@ IdentBySample <- function(obj, y_limits = c(0, 0.50)) {
   # Calculate the median proportions across samples
   median_proportions <- relative_proportions %>%
     group_by(active.ident) %>%
-    summarize(MedianProportion = median(Proportion))
+    dplyr::summarize(MedianProportion = median(Proportion))
   
   # Rename the columns for clarity
   colnames(median_proportions) <- c("active.ident", "MedianProportion")
@@ -193,9 +274,6 @@ IdentBySample <- function(obj, y_limits = c(0, 0.50)) {
   # Convert active.ident to a factor and specify the order
   median_proportions$active.ident <- factor(median_proportions$active.ident, levels = specified_order)
   relative_proportions$active.ident <- factor(relative_proportions$active.ident, levels = specified_order)
-  
-  # # Set y-axis limits
-  # y_limits <- c(0, 0.60) # Modify these values as needed
   
   # Calculate the maximum proportion for each active.ident
   max_proportions <- relative_proportions %>%
@@ -233,16 +311,51 @@ IdentBySample <- function(obj, y_limits = c(0, 0.50)) {
 
 #' SubclassByIdent
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the labeling family.
-#' @param obj (auto) parameter
-#' @param subclass.idx (auto) parameter
-#' @return (auto) value; see function body.
+#' Assign subclass labels to cells based on their cluster membership at specified resolutions.
+#' Creates metadata columns formatted as "subclass.[resolution]" containing subclass assignments.
+#'
+#' @param obj Seurat object with clustering results stored as "SCT_snn_res.[resolution]"
+#' @param subclass.idx Nested list structure:
+#'   List level 1: resolution names (e.g., "SCT_snn_res.0.2")
+#'   List level 2: subclass names (e.g., "IT_A", "Pvalb")
+#'   Values: character vectors of cluster IDs belonging to that subclass
+#'
+#' @return Seurat object with new metadata columns named "subclass.[resolution]".
+#'   Cells in specified clusters receive the subclass label; others remain NA.
+#'
+#' @details
+#' Example structure for subclass.idx:
+#' \preformatted{
+#' subclass.idx <- list(
+#'   SCT_snn_res.0.2 = list(
+#'     IT_A = c("1", "2"),
+#'     L5PT = c("6")
+#'   ),
+#'   SCT_snn_res.0.5 = list(
+#'     IT_A = c("2", "3", "4"),
+#'     L5PT = c("9")
+#'   )
+#' )
+#' }
+#'
+#' The function automatically creates appropriately named metadata columns based on
+#' the resolution format (handles both "res.X" and "res.X.Y" patterns).
+#'
 #' @export
 #' @family labeling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   subclass.idx <- list()
+#'   subclass.idx$SCT_snn_res.0.2$IT_A <- c("1", "2")
+#'   subclass.idx$SCT_snn_res.0.2$L5PT <- c("6")
+#'   subclass.idx$SCT_snn_res.0.5$IT_A <- c("2", "3", "4", "6")
+#'   subclass.idx$SCT_snn_res.0.5$L5PT <- c("9")
+#'   
+#'   obj <- SubclassByIdent(obj, subclass.idx)
+#'   
+#'   # Check assignments at one resolution
+#'   table(obj$subclass.0.2)
 #' }
 SubclassByIdent <- function(obj, subclass.idx) {
   

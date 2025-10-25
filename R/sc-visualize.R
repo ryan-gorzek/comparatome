@@ -1,15 +1,43 @@
 #' PlotFeatures
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the visualization family.
-#' @param obj (auto) parameter
-#' @param features (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate UMAP feature plots for a list of genes, printing each plot to the active graphics device.
+#' Handles both lists and vectors of gene names, automatically flattening list structures.
+#'
+#' @param obj Seurat object with UMAP reduction
+#' @param features Character vector or named list of genes to plot. If a list, names are ignored 
+#'   and all genes are flattened into a single vector.
+#'
+#' @return NULL (plots printed to graphics device). Silently skips genes not found in the object.
+#'
+#' @details
+#' For each gene in the features:
+#' \itemize{
+#'   \item Checks if gene exists in rownames(obj)
+#'   \item Generates UMAP FeaturePlot with:
+#'     - No legend
+#'     - Fixed axis limits (-18 to 18 on both axes)
+#'     - Equal aspect ratio
+#'     - No rasterization
+#'   \item Suppresses warnings (typically from missing genes)
+#'   \item Prints plot to active device
+#' }
+#'
+#' Useful for quick visualization of marker gene expression patterns.
+#'
 #' @export
 #' @family visualization
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Plot individual genes
+#'   PlotFeatures(obj, c("Slc17a6", "Gad1", "Aldh1l1"))
+#'   
+#'   # Plot from named list (names ignored)
+#'   markers <- list(
+#'     excitatory = c("Slc17a6", "Slc17a7"),
+#'     inhibitory = c("Gad1", "Gad2")
+#'   )
+#'   PlotFeatures(obj, markers)
 #' }
 PlotFeatures <- function(obj, features) {
   
@@ -28,20 +56,47 @@ PlotFeatures <- function(obj, features) {
 
 #' SaveDotPlots
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the visualization family.
-#' @param obj (auto) parameter
-#' @param markers (auto) parameter
-#' @param subclass.labels (auto) parameter
-#' @param ident.labels (auto) parameter
-#' @param savepath (auto) parameter
-#' @param ens.id (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate and save dot plots of top marker genes for each subclass and clustering resolution.
+#' Creates both fold-change (FC) and percent-difference (PD) ranked dot plots.
+#'
+#' @param obj Seurat object with subclass assignments and clustering results
+#' @param markers Nested marker list from IdentMarkerDict with structure markers[[subclass]][[resolution]]
+#' @param subclass.labels Character vector of subclasses to process
+#' @param ident.labels Character vector of resolutions to process (e.g., "SCT_snn_res.0.2")
+#' @param savepath Base directory for saving plots
+#' @param ens.id Ensembl ID prefix for gene name stripping (e.g., "ENSMODG" for opossum)
+#'
+#' @return NULL (plots saved to disk)
+#'
+#' @details
+#' For each subclass-resolution combination:
+#' \enumerate{
+#'   \item Subsets object to that subclass
+#'   \item For each cluster/type, selects top 20 unique marker genes by:
+#'     - avg_log2FC (fold-change) 
+#'     - pct.diff (pct.1 - pct.2, percent difference)
+#'   \item Generates two dot plots (FC and PD ranked)
+#'   \item Strips Ensembl IDs if genes contain the ens.id prefix
+#'   \item Saves to: [savepath]/[subclass]/[resolution]/[subclass.col]_DotPlot_FC.png (and _PD.png)
+#' }
+#'
+#' Plots use red-grey color scale without scaling, with vertical gene labels.
+#' Only includes markers unique to single clusters (not shared across clusters).
+#'
 #' @export
 #' @family visualization
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   markers <- IdentMarkerDict(obj, c("IT_A", "Pvalb"), c("SCT_snn_res.0.5"), "markers.rds")
+#'   SaveDotPlots(
+#'     obj = obj,
+#'     markers = markers,
+#'     subclass.labels = c("IT_A", "Pvalb"),
+#'     ident.labels = c("SCT_snn_res.0.5"),
+#'     savepath = "plots/",
+#'     ens.id = "ENSMUSG"
+#'   )
 #' }
 SaveDotPlots <- function(obj, markers, subclass.labels, ident.labels, savepath, ens.id) {
   
@@ -117,19 +172,42 @@ SaveDotPlots <- function(obj, markers, subclass.labels, ident.labels, savepath, 
 
 #' SaveFeaturePlots
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the visualization family.
-#' @param obj (auto) parameter
-#' @param markers (auto) parameter
-#' @param subclass.labels (auto) parameter
-#' @param ident.labels (auto) parameter
-#' @param savepath (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate and save UMAP feature plots for top marker genes in each subclass and resolution.
+#' Creates grid layouts of feature plots (5 columns) for both FC and PD ranked genes.
+#'
+#' @param obj Seurat object with UMAP reduction
+#' @param markers Nested marker list from IdentMarkerDict
+#' @param subclass.labels Character vector of subclasses to process
+#' @param ident.labels Character vector of resolutions to process
+#' @param savepath Base directory for saving plots
+#'
+#' @return NULL (plots saved to disk)
+#'
+#' @details
+#' For each subclass-resolution-type combination:
+#' \enumerate{
+#'   \item Selects top 20 unique markers by avg_log2FC and pct.diff
+#'   \item Creates 5-column grid of FeaturePlots for each gene
+#'   \item Applies consistent square axis limits with equal aspect ratio
+#'   \item Saves to: [savepath]/[subclass]/[resolution]/[subclass.col]_FeaturePlot_FC_id-[type].png
+#' }
+#'
+#' Handles cases with fewer than 20 genes gracefully.
+#' All plots use red-grey color scale and equal-aspect square plotting area.
+#'
 #' @export
 #' @family visualization
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   markers <- IdentMarkerDict(obj, c("IT_A"), c("SCT_snn_res.0.5"), "markers.rds")
+#'   SaveFeaturePlots(
+#'     obj = obj,
+#'     markers = markers,
+#'     subclass.labels = c("IT_A"),
+#'     ident.labels = c("SCT_snn_res.0.5"),
+#'     savepath = "plots/"
+#'   )
 #' }
 SaveFeaturePlots <- function(obj, markers, subclass.labels, ident.labels, savepath) {
   
@@ -232,18 +310,46 @@ SaveFeaturePlots <- function(obj, markers, subclass.labels, ident.labels, savepa
 
 #' SaveFeaturePlotsByKMeans
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the visualization family.
-#' @param obj (auto) parameter
-#' @param markers (auto) parameter
-#' @param polygon.coords (auto) parameter
-#' @param savepath (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate and save UMAP feature plots for marker genes grouped by k-means clustering,
+#' with polygon overlays showing spatial regions of interest.
+#'
+#' @param obj Seurat object with UMAP reduction
+#' @param markers Data.frame containing marker genes with kmeans_cluster column
+#' @param polygon.coords Data.frame with columns X..X and Y defining polygon vertices for overlay
+#' @param savepath Base path for saving plots (cluster ID will be appended)
+#'
+#' @return NULL (plots saved to disk)
+#'
+#' @details
+#' Similar to SaveFeaturePlots but groups markers by k-means cluster rather than
+#' Seurat clustering. Adds polygon overlays to each feature plot to highlight
+#' spatial regions of interest (useful for spatial transcriptomics or anatomical regions).
+#'
+#' For each k-means cluster:
+#' \enumerate{
+#'   \item Selects top 20 unique markers by avg_log2FC and pct.diff
+#'   \item Creates 5-column grid of FeaturePlots
+#'   \item Overlays polygon as dashed black line with points at vertices
+#'   \item Saves to: [savepath]_FeaturePlot_FC_KMeans_[cluster].png
+#' }
+#'
 #' @export
 #' @family visualization
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Define region of interest
+#'   polygon_coords <- data.frame(
+#'     X..X = c(100, 200, 200, 100, 100),
+#'     Y = c(100, 100, 200, 200, 100)
+#'   )
+#'   
+#'   SaveFeaturePlotsByKMeans(
+#'     obj = spatial_obj,
+#'     markers = kmeans_markers,
+#'     polygon.coords = polygon_coords,
+#'     savepath = "plots/spatial_markers"
+#'   )
 #' }
 SaveFeaturePlotsByKMeans <- function(obj, markers, polygon.coords, savepath) {
   

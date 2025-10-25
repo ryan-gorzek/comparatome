@@ -1,17 +1,44 @@
 #' IdentMarkerDict
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the markers family.
-#' @param obj (auto) parameter
-#' @param subclass.labels (auto) parameter
-#' @param ident.labels (auto) parameter
-#' @param save.path (auto) parameter
-#' @return (auto) value; see function body.
+#' Compute differential expression markers for clusters within each subclass across multiple 
+#' clustering resolutions. Generates a nested list structure containing marker genes for each 
+#' subclass-resolution-cluster combination.
+#'
+#' @param obj Seurat object with subclass assignments (metadata columns like "subclass.0.2")
+#'   and clustering results (columns like "SCT_snn_res.0.2")
+#' @param subclass.labels Character vector of subclass names to analyze (e.g., c("IT_A", "Pvalb"))
+#' @param ident.labels Character vector of clustering resolution identifiers (e.g., "SCT_snn_res.0.2")
+#' @param save.path File path where the marker dictionary RDS will be saved
+#'
+#' @return Nested list structure: marker.dict[[subclass]][[resolution]] containing 
+#'   FindAllMarkers output (data.frame with columns: gene, cluster, avg_log2FC, pct.1, pct.2, p_val_adj)
+#'
+#' @details
+#' For each subclass and resolution combination:
+#' \enumerate{
+#'   \item Subsets object to cells of that subclass
+#'   \item Sets identities to the clustering at specified resolution
+#'   \item Runs FindAllMarkers with only.pos = TRUE and logfc.threshold = 0.1
+#'   \item Stores results in nested list structure
+#' }
+#'
+#' Results are automatically saved to save.path as an RDS file for later retrieval.
+#' Skips subclass-resolution pairs with only one cluster.
+#'
 #' @export
 #' @family markers
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   markers <- IdentMarkerDict(
+#'     obj = obj,
+#'     subclass.labels = c("IT_A", "IT_B", "L5PT"),
+#'     ident.labels = c("SCT_snn_res.0.2", "SCT_snn_res.0.5"),
+#'     save.path = "markers/markerdict_clusters.rds"
+#'   )
+#'   
+#'   # Access markers for IT_A at resolution 0.2
+#'   it_a_markers <- markers$IT_A$SCT_snn_res.0.2
 #' }
 IdentMarkerDict <- function(obj, subclass.labels, ident.labels, save.path) {
   
@@ -52,17 +79,37 @@ IdentMarkerDict <- function(obj, subclass.labels, ident.labels, save.path) {
 
 #' SubclassMarkerDict
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the markers family.
-#' @param obj (auto) parameter
-#' @param subclass.labels (auto) parameter
-#' @param save.path (auto) parameter
-#' @return (auto) value; see function body.
+#' Compute differential expression markers distinguishing between subclasses.
+#' Generates a list containing marker genes that distinguish each subclass from all others.
+#'
+#' @param obj Seurat object with subclass labels in metadata
+#' @param subclass.labels Character, name of metadata column containing subclass assignments
+#' @param save.path File path where the marker dictionary RDS will be saved
+#'
+#' @return List structure: marker.dict[[subclass]] containing FindAllMarkers output 
+#'   (data.frame with columns: gene, cluster, avg_log2FC, pct.1, pct.2, p_val_adj)
+#'   where each "cluster" is actually a subclass
+#'
+#' @details
+#' Sets the specified subclass column as the active identity and runs FindAllMarkers
+#' to identify genes enriched in each subclass compared to all others.
+#' Uses only.pos = TRUE and logfc.threshold = 0.1.
+#'
+#' Results saved to save.path as RDS file.
+#'
 #' @export
 #' @family markers
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   subclass_markers <- SubclassMarkerDict(
+#'     obj = obj,
+#'     subclass.labels = "subclass",
+#'     save.path = "markers/markerdict_subclass.rds"
+#'   )
+#'   
+#'   # View top markers for a subclass
+#'   head(subclass_markers$subclass[subclass_markers$subclass$cluster == "IT_A", ])
 #' }
 SubclassMarkerDict <- function(obj, subclass.labels, save.path) {
   
@@ -87,17 +134,36 @@ SubclassMarkerDict <- function(obj, subclass.labels, save.path) {
 
 #' PlotIdentGeneCounts
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the markers family.
-#' @param nested_list (auto) parameter
-#' @param subclass (auto) parameter
-#' @param clustering_res (auto) parameter
-#' @return (auto) value; see function body.
+#' Plot the number of differentially expressed genes per cluster as a function of 
+#' log fold-change threshold. Visualizes marker gene specificity and abundance.
+#'
+#' @param nested_list Marker dictionary from IdentMarkerDict() with structure 
+#'   nested_list[[subclass]][[clustering_res]]
+#' @param subclass Character, subclass name to plot
+#' @param clustering_res Character, clustering resolution to plot (e.g., "SCT_snn_res.0.2")
+#'
+#' @return ggplot object showing line plots of gene counts vs log2FC threshold for each cluster
+#'
+#' @details
+#' For each cluster within the specified subclass and resolution:
+#' \enumerate{
+#'   \item Extracts marker genes with their avg_log2FC values
+#'   \item Creates a grid of log2FC thresholds from 0.2 to min(max_log2FC, 2)
+#'   \item Counts how many genes exceed each threshold
+#'   \item Plots as colored lines, one per cluster
+#' }
+#'
+#' Vertical reference lines at 0.2 and 0.5 log2FC highlight common thresholds.
+#' Clusters are reverse-sorted for consistent visualization.
+#'
 #' @export
 #' @family markers
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   markers <- IdentMarkerDict(obj, c("IT_A"), c("SCT_snn_res.0.5"), "markers.rds")
+#'   p <- PlotIdentGeneCounts(markers, "IT_A", "SCT_snn_res.0.5")
+#'   p + theme(aspect.ratio = 1)
 #' }
 PlotIdentGeneCounts <- function(nested_list, subclass, clustering_res) {
 
@@ -142,17 +208,38 @@ PlotIdentGeneCounts <- function(nested_list, subclass, clustering_res) {
 
 #' PlotSubclassGeneCounts
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the markers family.
-#' @param nested_list (auto) parameter
-#' @param subclass.col (auto) parameter
-#' @param subclass.order (auto) parameter
-#' @return (auto) value; see function body.
+#' Plot the number of differentially expressed genes per subclass as a function of 
+#' log fold-change threshold. Similar to PlotIdentGeneCounts but for subclass-level markers.
+#'
+#' @param nested_list Marker dictionary from SubclassMarkerDict() with structure 
+#'   nested_list[[subclass.col]]
+#' @param subclass.col Character, name of the subclass column used
+#' @param subclass.order Character vector specifying display order of subclasses
+#'
+#' @return ggplot object showing line plots of gene counts vs log2FC threshold for each subclass
+#'
+#' @details
+#' Filters markers to include only those with:
+#' \itemize{
+#'   \item pct.1 >= 0.2 (expressed in at least 20% of cells in the subclass)
+#'   \item p_val_adj < 0.05 (significant after multiple testing correction)
+#' }
+#'
+#' Then generates line plot showing marker counts across log2FC thresholds.
+#' Subclasses ordered according to subclass.order parameter.
+#'
 #' @export
 #' @family markers
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   subclass_markers <- SubclassMarkerDict(obj, "subclass", "markers.rds")
+#'   p <- PlotSubclassGeneCounts(
+#'     subclass_markers, 
+#'     "subclass",
+#'     c("IT_A", "IT_B", "L5PT", "L6CT")
+#'   )
+#'   p + theme(aspect.ratio = 1)
 #' }
 PlotSubclassGeneCounts <- function(nested_list, subclass.col, subclass.order) {
   
@@ -200,33 +287,33 @@ PlotSubclassGeneCounts <- function(nested_list, subclass.col, subclass.order) {
 
 #' plotGeneFractions
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the markers family.
-#' @param df (auto) parameter
-#' @param gene_list (auto) parameter
-#' @return (auto) value; see function body.
-#' @export
+#' Plot the fraction of genes found in a custom gene list among differentially expressed markers.
+#'
+#' @param df Data.frame of marker genes (from FindAllMarkers)
+#' @param gene_list Character vector of genes to search for
+#'
+#' @return ggplot object showing fraction of markers present in gene_list for each cluster
+#'
+#' @keywords internal
 #' @family markers
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   canonical_genes <- c("Slc17a6", "Slc17a7", "Sv2b")
+#'   p <- plotGeneFractions(markers, canonical_genes)
 #' }
 plotGeneFractions <- function(df, gene_list) {
-  # Calculate the fraction of genes in each cluster that belong to the gene_list
-  fraction_data <- df %>%
-    dplyr::group_by(cluster) %>%
-    dplyr::summarize(
-      total_genes = n(),
-      matching_genes = sum(gene %in% gene_list),
-      fraction = matching_genes / total_genes
-    )
+  frac_per_cluster <- df %>% 
+    group_by(cluster) %>% 
+    summarise(fraction = sum(gene %in% gene_list) / n())
   
-  # Plot the results
-  ggplot(fraction_data, aes(x = cluster, y = fraction)) +
-    geom_bar(stat = "identity", fill = "steelblue") +
-    labs(title = "",
-         x = "Cluster",
-         y = "Fraction of Genes") +
-    ylim(0, 1) +
-    theme_minimal()
+  levels(frac_per_cluster$cluster) <- rev(sort_idents(levels(frac_per_cluster$cluster)))
+  frac_per_cluster$cluster <- factor(frac_per_cluster$cluster, levels = levels(frac_per_cluster$cluster))
+  
+  ggplot(frac_per_cluster, aes(x = fraction, y = cluster)) +
+    geom_bar(stat = "identity") +
+    theme_minimal() +
+    labs(title = "Fraction of Genes in Custom List",
+         x = "Fraction",
+         y = "Cluster")
 }
