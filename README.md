@@ -1,6 +1,6 @@
 # comparatome
 
-Comparative single-cell and cross-species transcriptomics tools built on Seurat for preprocessing, clustering, mapping across datasets/species, cross-species gene expression comparisons, and visualization.
+Comparative single-cell and cross-species transcriptomics tools built on Seurat for preprocessing, clustering, mapping across datasets/species, cross-species gene expression comparisons, and visualization. Under active development.
 
 ## Installation
 
