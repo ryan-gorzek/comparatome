@@ -46,85 +46,143 @@ SubsampleObject <- function(seurat_obj, metadata_col, cells_per_category) {
 
 #' SubsampleObjectMultipleIterations
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the subsampling family.
-#' @param seurat_obj (auto) parameter
-#' @param metadata_col (auto) parameter
-#' @param cells_per_category (auto) parameter
-#' @param iterations (auto) parameter
-#' @return (auto) value; see function body.
+#' Perform stratified subsampling of a Seurat object across multiple iterations, attempting to sample different cells in each iteration.
+#' 
+#' This function repeatedly subsamples cells from a Seurat object, stratified by a metadata column.
+#' It attempts to minimize cell reuse across iterations by tracking previously sampled cells. Within each
+#' iteration, the function samples `cells_per_category` cells from each unique value in the specified
+#' metadata column. When a category lacks sufficient unsampled cells, the function draws from the
+#' entire category pool to meet the target. This is useful for bootstrapping analyses, computing
+#' confidence intervals, or assessing sampling variability in downstream analyses.
+#' 
+#' @param seurat_obj Seurat object to subsample.
+#' @param metadata_col Character string specifying the name of a metadata column to stratify by (e.g., "cluster", "celltype").
+#' @param cells_per_category Integer specifying the number of cells to sample from each unique value in `metadata_col` per iteration.
+#' @param iterations Integer specifying the number of independent subsampling iterations to perform.
+#' 
+#' @details
+#' The function implements a stratified subsampling strategy:
+#' 
+#' 1. **Within-iteration uniqueness**: Within each iteration, no cell is sampled more than once.
+#' 
+#' 2. **Cross-iteration diversity**: The function tracks cells sampled in previous iterations and attempts
+#'    to select different cells in subsequent iterations. However, if a category has fewer total cells
+#'    than `cells_per_category * iterations`, cells will necessarily be reused across iterations.
+#' 
+#' 3. **Category handling**: For each unique value in `metadata_col`, the function samples exactly
+#'    `cells_per_category` cells per iteration. If a category contains fewer than `cells_per_category`
+#'    cells, all available cells are sampled first, then additional cells are drawn from the entire
+#'    category pool to reach the target.
+#' 
+#' 4. **Order preservation**: The order of categories matches the order encountered in the metadata column.
+#' 
+#' The returned list contains cell barcodes rather than Seurat objects to minimize memory usage, allowing
+#' users to subset the original object as needed for each iteration.
+#' 
+#' @return List of length `iterations`, where each element is a character vector of cell barcodes
+#'   representing the subsampled cells for that iteration. Each vector contains 
+#'   `length(unique(metadata_col)) * cells_per_category` cell barcodes (assuming sufficient cells exist
+#'   in each category).
+#'   
 #' @export
 #' @family subsampling
+#' 
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'  # Perform 10 iterations of subsampling, taking 100 cells per cluster each time
+#'  cell_lists <- SubsampleObjectMultipleIterations(
+#'    seurat_obj = pbmc,
+#'    metadata_col = "seurat_clusters",
+#'    cells_per_category = 100,
+#'    iterations = 10
+#'  )
+#'  
+#'  # Subset the object for the first iteration
+#'  pbmc_subsample_1 <- subset(pbmc, cells = cell_lists[[1]])
+#'  
+#'  # Use in a bootstrap workflow to compute standard errors
+#'  marker_results <- lapply(cell_lists, function(cells) {
+#'    obj_subsample <- subset(pbmc, cells = cells)
+#'    FindMarkers(obj_subsample, ident.1 = "cluster1", ident.2 = "cluster2")
+#'  })
 #' }
 SubsampleObjectMultipleIterations <- function(seurat_obj, metadata_col, cells_per_category, iterations) {
-  # Extract metadata
+  
+  # Extract metadata for cell lookup
   metadata <- seurat_obj@meta.data
   
-  # Get unique values in the specified metadata column
+  # Get unique values in the specified metadata column (e.g., cluster IDs, cell types)
   unique_values <- unique(metadata[[metadata_col]])
   
-  # Initialize a list to store sampled cells for each iteration
+  # Initialize a list to store sampled cell barcodes for each iteration
   iterations_list <- vector("list", iterations)
   
-  # Initialize a list to keep track of already sampled cells
+  # Initialize a tracker to monitor which cells have been sampled in previous iterations
+  # Structure: list of lists, where sampled_cells_overall[[iter]][[category]] contains cell barcodes
   sampled_cells_overall <- vector("list", iterations)
   
+  # Iterate through each subsampling round
   for (iter in 1:iterations) {
-    # Initialize a vector to store sampled cells for this iteration
+    
+    # Initialize a vector to accumulate sampled cells for this iteration
     subsampled_cells <- c()
     
-    # Initialize a list to track sampled cells for this iteration
+    # Initialize a category-wise tracker for this iteration
     sampled_cells_iter <- list()
     
+    # Loop through each category (e.g., each cluster or cell type)
     for (value in unique_values) {
-      # Get cells that belong to the current metadata category
+      
+      # Identify all cells belonging to the current category
       cells_in_category <- rownames(metadata[metadata[[metadata_col]] == value, ])
       
-      # Exclude cells that have already been sampled in previous iterations
+      # Extract cells previously sampled in prior iterations for this category (currently unused in logic below)
       previously_sampled <- unlist(lapply(sampled_cells_overall, function(x) if (!is.null(x[[value]])) x[[value]] else c()))
-      available_cells <- setdiff(cells_in_category, subsampled_cells) # Ensure no duplicates within iteration
       
-      # Check if there are available cells to sample
+      # Compute cells available for sampling (exclude cells already sampled in this iteration)
+      available_cells <- setdiff(cells_in_category, subsampled_cells)
+      
+      # Determine how many cells to sample
       if (length(available_cells) > 0) {
+        
         if (length(available_cells) >= cells_per_category) {
-          # Sample without replacement
+          # Sufficient cells available: sample the target number without replacement
           sampled_cells <- sample(available_cells, cells_per_category, replace = FALSE)
+          
         } else {
-          # Sample all available cells
+          # Insufficient cells available: take all available cells first
           sampled_cells <- available_cells
           
-          # If needed, sample additional cells from the entire pool
+          # Calculate how many more cells are needed to reach the target
           remaining_needed <- cells_per_category - length(available_cells)
           
-          # Sample from the previously used cells plus the remaining available cells
+          # Define a pool of additional cells (all cells in category minus those just sampled)
           additional_pool <- setdiff(cells_in_category, sampled_cells)
           
-          # Check if additional_pool is non-empty before sampling
+          # Sample additional cells if pool is non-empty
           if (length(additional_pool) > 0) {
             additional_cells <- sample(additional_pool, remaining_needed, replace = FALSE)
-            # Combine the available and additional sampled cells
             sampled_cells <- c(sampled_cells, additional_cells)
           }
         }
+        
       } else {
-        # If no available cells, sample with replacement from the entire category
+        # No available cells (all have been sampled within this iteration already)
+        # Fall back to sampling from the entire category without replacement
         sampled_cells <- sample(cells_in_category, cells_per_category, replace = FALSE)
       }
       
-      # Add sampled cells to the subsampled_cells vector
+      # Accumulate sampled cells for this iteration
       subsampled_cells <- c(subsampled_cells, sampled_cells)
       
-      # Store sampled cells for this category in the tracker for this iteration
+      # Track which cells were sampled from this category in this iteration
       sampled_cells_iter[[value]] <- sampled_cells
     }
     
-    # Store the subsampled cells for this iteration
+    # Store the cell barcodes sampled in this iteration
     iterations_list[[iter]] <- subsampled_cells
     
-    # Store the sampled cells for this iteration in the overall tracker
+    # Update the overall tracker with this iteration's sampling record
     sampled_cells_overall[[iter]] <- sampled_cells_iter
   }
   

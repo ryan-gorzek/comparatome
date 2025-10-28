@@ -58,28 +58,6 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
   confusion_matrix <- table(as.character(unlist(data[[column_name]])), as.character(unlist(data[[paste0("predicted.", column_name)]])))
   confusion_matrix <- as.matrix(confusion_matrix)
   
-  add_zeros_to_table <- function(tbl, new_row_names, new_col_names) {
-    # Add new rows of zeros
-    for (row_name in new_row_names) {
-      if (!any(row_name %in% rownames(tbl))) {
-        tbl <- rbind(tbl, setNames(t(rep(0, ncol(tbl))), row_name))
-        orig_names <- rownames(tbl)[rownames(tbl) != ""]
-        rownames(tbl) <- c(orig_names, row_name)
-      }
-    }
-    
-    # Add new columns of zeros
-    for (col_name in new_col_names) {
-      if (!any(col_name %in% colnames(tbl))) {
-        tbl <- cbind(tbl, setNames(rep(0, nrow(tbl)), col_name))
-        orig_names <- colnames(tbl)[colnames(tbl) != ""]
-        colnames(tbl) <- c(orig_names, col_name)
-      }
-    }
-    
-    return(tbl)
-  }
-  
   # Ensure all possible levels are present in the confusion matrix
   row_levels <- as.character(unlist(unique(data[[column_name]])))
   col_levels <- column_levels
@@ -98,21 +76,9 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
   if (!is.null(normalize)) {
     if (normalize %in% c("row", "col")) {
       melted <- ddply(melted, normalize, transform, Percentage = Count / sum(Count) * 100)
-  } else {
+    } else {
     melted$Percentage <- melted$Count
-  }
     }
-  
-  # Sorting function
-  sort_ident <- function(ident, primary_order) {
-    primary <- sapply(ident, function(x) str_extract(x, paste(primary_order, collapse = "|")))
-    suffix <- sapply(ident, function(x) str_extract(x, "(?<=_)[A-Za-z0-9]+$"))
-    suffix_numeric <- suppressWarnings(as.numeric(suffix))
-    suffix[is.na(suffix_numeric)] <- paste0("Z", suffix[is.na(suffix_numeric)])  # Add "Z" prefix to non-numeric suffixes to sort them correctly
-    suffix_numeric[is.na(suffix_numeric)] <- Inf
-    df <- data.frame(ident = ident, primary = primary, suffix = suffix, suffix_numeric = suffix_numeric)
-    df <- df %>% arrange(match(primary, primary_order), suffix_numeric, suffix)
-    return(unlist(df$ident))
   }
   
   # Get unique levels
@@ -121,11 +87,11 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
   
   # Sort and factorize identifiers
   if (is.null(ident.order)) {
-    row_levels <- sort_ident(row_levels, unique(melted$row))
-    col_levels <- sort_ident(col_levels, unique(melted$col))
+    row_levels <- sort_idents(row_levels, unique(melted$row))
+    col_levels <- sort_idents(col_levels, unique(melted$col))
   } else {
-    row_levels <- sort_ident(row_levels, ident.order)
-    col_levels <- sort_ident(col_levels, ident.order)
+    row_levels <- sort_idents(row_levels, ident.order)
+    col_levels <- sort_idents(col_levels, ident.order)
   }
   
   melted$row <- factor(melted$row, levels = row_levels)
@@ -163,50 +129,88 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
 
 #' PlotSubsampledMappedLabelsHeatmap
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the mapping-metrics family.
-#' @param true.labels (auto) parameter
-#' @param pred.labels (auto) parameter
-#' @param column_levels (auto) parameter
-#' @param normalize (auto) parameter
-#' @param ident.order (auto) parameter
-#' @param col.low (auto) parameter
-#' @param col.high (auto) parameter
-#' @param x.lab.rot (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate confusion matrix heatmap from aggregated subsampled mapping results.
+#' Similar to PlotMappedLabelsHeatmap but operates on pre-aggregated label vectors 
+#' rather than a Seurat object, allowing visualization of results from multiple mapping iterations.
+#'
+#' @param true.labels Character vector of true labels (e.g., cluster IDs from query dataset)
+#' @param pred.labels Character vector of predicted labels (e.g., subclass assignments from reference dataset)
+#'   Must be same length as true.labels
+#' @param column_levels Character vector specifying all possible predicted label levels to include in matrix,
+#'   ensures complete matrix even if some labels absent from predictions
+#' @param normalize Character, normalization method: "row" (percentage within true label), 
+#'   "col" (percentage within predicted label), or NULL for raw counts (default: NULL)
+#' @param ident.order Numeric/character vector specifying custom display order for both rows and columns.
+#'   If NULL, uses factor-based ordering from column_levels (default: NULL)
+#' @param col.low Color for low values in heatmap gradient (default: "white")
+#' @param col.high Color for high values in heatmap gradient (default: "red")
+#' @param x.lab.rot Logical, whether to rotate x-axis labels 90 degrees (default: TRUE)
+#'
+#' @return ggplot2 object showing confusion matrix heatmap with percentage/count labels in tiles
+#'
+#' @details
+#' Designed for visualizing cross-species mapping results from multiple subsampled iterations.
+#' Typical workflow:
+#' \enumerate{
+#'   \item Subsample query and reference datasets multiple times
+#'   \item Map query to reference for each iteration using MapObject
+#'   \item Aggregate all true and predicted labels across iterations
+#'   \item Visualize with this function to show overall mapping patterns
+#' }
+#'
+#' Matrix construction:
+#' \enumerate{
+#'   \item Creates confusion matrix from true vs predicted label vectors
+#'   \item Adds zero-filled rows/columns for missing levels from column_levels
+#'   \item Normalizes by row or column if specified
+#'   \item Orders labels according to ident.order (or uses factor levels if not specified)
+#' }
+#'
+#' Text size automatically adjusts (smaller for >10 classes). Fixed aspect ratio ensures square tiles.
+#' Unlike PlotMappedLabelsHeatmap, this function doesn't extract labels from a Seurat object,
+#' making it suitable for pre-aggregated results stored as vectors.
+#'
 #' @export
 #' @family mapping-metrics
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # After multiple subsampled mapping iterations
+#'   mapping.results <- list(
+#'     true.labels = c(),
+#'     pred.labels = c()
+#'   )
+#'   
+#'   for (i in 1:10) {
+#'     obj.query.sub <- SubsampleObject(obj.query, "cluster", 100)
+#'     obj.ref.sub <- SubsampleObject(obj.ref, "subclass", 100)
+#'     obj.mapped <- MapObject(obj.ref.sub, obj.query.sub, idents = "subclass")
+#'     
+#'     mapping.results$true.labels <- c(
+#'       mapping.results$true.labels,
+#'       as.character(obj.mapped$cluster)
+#'     )
+#'     mapping.results$pred.labels <- c(
+#'       mapping.results$pred.labels,
+#'       as.character(obj.mapped$predicted.subclass)
+#'     )
+#'   }
+#'   
+#'   # Visualize aggregated results
+#'   p <- PlotSubsampledMappedLabelsHeatmap(
+#'     true.labels = mapping.results$true.labels,
+#'     pred.labels = mapping.results$pred.labels,
+#'     column_levels = c("IT_A", "IT_B", "L5PT", "L6CT"),
+#'     normalize = "row",
+#'     ident.order = c(1:20, "IT_A", "IT_B", "L5PT", "L6CT")
+#'   )
+#'   print(p)
 #' }
 PlotSubsampledMappedLabelsHeatmap <- function(true.labels, pred.labels, column_levels, normalize = NULL, ident.order = NULL, col.low = "white", col.high = "red", x.lab.rot = TRUE) {
   
   # Create confusion matrix
   confusion_matrix <- table(as.character(unlist(true.labels)), as.character(unlist(pred.labels)))
   confusion_matrix <- as.matrix(confusion_matrix)
-  
-  add_zeros_to_table <- function(tbl, new_row_names, new_col_names) {
-    # Add new rows of zeros
-    for (row_name in new_row_names) {
-      if (!any(row_name %in% rownames(tbl))) {
-        tbl <- rbind(tbl, setNames(t(rep(0, ncol(tbl))), row_name))
-        orig_names <- rownames(tbl)[rownames(tbl) != ""]
-        rownames(tbl) <- c(orig_names, row_name)
-      }
-    }
-    
-    # Add new columns of zeros
-    for (col_name in new_col_names) {
-      if (!any(col_name %in% colnames(tbl))) {
-        tbl <- cbind(tbl, setNames(rep(0, nrow(tbl)), col_name))
-        orig_names <- colnames(tbl)[colnames(tbl) != ""]
-        colnames(tbl) <- c(orig_names, col_name)
-      }
-    }
-    
-    return(tbl)
-  }
   
   # Ensure all possible levels are present in the confusion matrix
   row_levels <- as.character(unlist(unique(true.labels)))
@@ -224,31 +228,11 @@ PlotSubsampledMappedLabelsHeatmap <- function(true.labels, pred.labels, column_l
   
   # Normalize if needed
   if (!is.null(normalize)) {
-    if (normalize == "row") {
-      melted <- ddply(melted, .(row), transform, Percentage = Count / sum(Count) * 100)
-    } else if (normalize == "col") {
-      melted <- ddply(melted, .(col), transform, Percentage = Count / sum(Count) * 100)
+    if (normalize %in% c("row", "col")) {
+      melted <- ddply(melted, normalize, transform, Percentage = Count / sum(Count) * 100)
+    } else {
+      melted$Percentage <- melted$Count
     }
-  } else {
-    melted$Percentage <- melted$Count
-  }
-  
-  # # Sorting function
-  # sort_ident <- function(ident, primary_order) {
-  #   primary <- sapply(ident, function(x) str_extract(x, paste(primary_order, collapse = "|")))
-  #   suffix <- sapply(ident, function(x) str_extract(x, "(?<=_)[A-Za-z0-9]+$"))
-  #   suffix_numeric <- suppressWarnings(as.numeric(suffix))
-  #   suffix[is.na(suffix_numeric)] <- paste0("Z", suffix[is.na(suffix_numeric)])  # Add "Z" prefix to non-numeric suffixes to sort them correctly
-  #   suffix_numeric[is.na(suffix_numeric)] <- Inf
-  #   df <- data.frame(ident = ident, primary = primary, suffix = suffix, suffix_numeric = suffix_numeric)
-  #   df <- df %>% arrange(match(primary, primary_order), suffix_numeric, suffix)
-  #   return(unlist(df$ident))
-  # }
-  
-  sort_ident <- function(ident, primary_order) {
-    # Ensure that all identifiers in 'ident' are part of 'primary_order'
-    ident <- factor(ident, levels = primary_order, ordered = TRUE)
-    return(as.character(levels(ident)))  # Return the factor levels in the specified order
   }
   
   # Get unique levels
@@ -257,11 +241,11 @@ PlotSubsampledMappedLabelsHeatmap <- function(true.labels, pred.labels, column_l
 
   # Sort and factorize identifiers
   if (is.null(ident.order)) {
-    row_levels <- sort_ident(row_levels, unique(melted$row))
-    col_levels <- sort_ident(col_levels, unique(melted$col))
+    row_levels <- sort_idents(row_levels, unique(melted$row))
+    col_levels <- sort_idents(col_levels, unique(melted$col))
   } else {
-    row_levels <- sort_ident(row_levels, ident.order)
-    col_levels <- sort_ident(col_levels, ident.order)
+    row_levels <- sort_idents(row_levels, ident.order)
+    col_levels <- sort_idents(col_levels, ident.order)
   }
   
   melted$row <- factor(melted$row, levels = row_levels)
@@ -317,39 +301,17 @@ PlotSubsampledMappedLabelsHeatmap <- function(true.labels, pred.labels, column_l
 PlotMappingQualityHeatmap <- function(data, column_name, column_levels, value_column, ident.order = NULL, col.low = "white", col.high = "red", x.lab.rot = TRUE) {
 
   # Create average matrix
-  average_matrix <<- with(data, tapply(as.numeric(unlist(data[[value_column]])), 
+  average_matrix <- with(data, tapply(as.numeric(unlist(data[[value_column]])), 
                                        list(as.character(unlist(data[[column_name]])), 
                                        as.character(unlist(data[[paste0("predicted.", column_name)]]))), mean, na.rm = TRUE))
   average_matrix[is.na(average_matrix)] <- 0
   average_matrix <- average_matrix * 100
 
-  add_zeros_to_table <- function(tbl, new_row_names, new_col_names) {
-    # Add new rows of zeros
-    for (row_name in new_row_names) {
-      if (!any(row_name %in% rownames(tbl))) {
-        tbl <- rbind(tbl, setNames(t(rep(0, ncol(tbl))), row_name))
-        orig_names <- rownames(tbl)[rownames(tbl) != ""]
-        rownames(tbl) <- c(orig_names, row_name)
-      }
-    }
-
-    # Add new columns of zeros
-    for (col_name in new_col_names) {
-      if (!any(col_name %in% colnames(tbl))) {
-        tbl <- cbind(tbl, setNames(rep(0, nrow(tbl)), col_name))
-        orig_names <- colnames(tbl)[colnames(tbl) != ""]
-        colnames(tbl) <- c(orig_names, col_name)
-      }
-    }
-
-    return(tbl)
-  }
-
   # Ensure all possible levels are present in the average matrix
-  row_levels <<- as.character(unlist(unique(data[[column_name]])))
-  col_levels <<- column_levels
-  rows_to_add <<- row_levels[row_levels %in% rownames(average_matrix) == FALSE]
-  cols_to_add <<- col_levels[col_levels %in% colnames(average_matrix) == FALSE]
+  row_levels <- as.character(unlist(unique(data[[column_name]])))
+  col_levels <- column_levels
+  rows_to_add <- row_levels[row_levels %in% rownames(average_matrix) == FALSE]
+  cols_to_add <- col_levels[col_levels %in% colnames(average_matrix) == FALSE]
   average_matrix <- add_zeros_to_table(average_matrix, rows_to_add, cols_to_add)
 
   # average_df <- as.data.frame(average_matrix)
@@ -359,29 +321,17 @@ PlotMappingQualityHeatmap <- function(data, column_name, column_levels, value_co
   colnames(melted) <- c("row", "col", "Value")
   melted$Value <- as.numeric(melted$Value)
 
-  # Sorting function
-  sort_ident <- function(ident, primary_order) {
-    primary <- sapply(ident, function(x) str_extract(x, paste(primary_order, collapse = "|")))
-    suffix <- sapply(ident, function(x) str_extract(x, "(?<=_)[A-Za-z0-9]+$"))
-    suffix_numeric <- suppressWarnings(as.numeric(suffix))
-    suffix[is.na(suffix_numeric)] <- paste0("Z", suffix[is.na(suffix_numeric)])  # Add "Z" prefix to non-numeric suffixes to sort them correctly
-    suffix_numeric[is.na(suffix_numeric)] <- Inf
-    df <- data.frame(ident = ident, primary = primary, suffix = suffix, suffix_numeric = suffix_numeric)
-    df <- df %>% arrange(match(primary, primary_order), suffix_numeric, suffix)
-    return(unlist(df$ident))
-  }
-
   # Get unique levels
   row_levels <- unique(melted$row)
   col_levels <- unique(melted$col)
 
   # Sort and factorize identifiers
   if (is.null(ident.order)) {
-    row_levels <- sort_ident(row_levels, unique(melted$row))
-    col_levels <- sort_ident(col_levels, unique(melted$col))
+    row_levels <- sort_idents(row_levels, unique(melted$row))
+    col_levels <- sort_idents(col_levels, unique(melted$col))
   } else {
-    row_levels <- sort_ident(row_levels, ident.order)
-    col_levels <- sort_ident(col_levels, ident.order)
+    row_levels <- sort_idents(row_levels, ident.order)
+    col_levels <- sort_idents(col_levels, ident.order)
   }
 
   melted$row <- factor(melted$row, levels = row_levels)
@@ -438,28 +388,6 @@ MappingAccuracy <- function(data, column_name) {
   
   # Ensure all possible levels are present in the confusion matrix
   row_levels <- as.character(unlist(unique(data[[column_name]])))
-  
-  # Function to add zeros to the confusion matrix if levels are missing
-  add_zeros_to_table <- function(tbl, new_row_names, new_col_names) {
-    for (row_name in new_row_names) {
-      if (!any(row_name %in% rownames(tbl))) {
-        tbl <- rbind(tbl, setNames(t(rep(0, ncol(tbl))), row_name))
-        orig_names <- rownames(tbl)[rownames(tbl) != ""]
-        rownames(tbl) <- c(orig_names, row_name)
-      }
-    }
-    
-    for (col_name in new_col_names) {
-      if (!any(col_name %in% colnames(tbl))) {
-        tbl <- cbind(tbl, setNames(rep(0, nrow(tbl)), col_name))
-        orig_names <- colnames(tbl)[colnames(tbl) != ""]
-        colnames(tbl) <- c(orig_names, col_name)
-      }
-    }
-    
-    return(tbl)
-  }
-  
   rows_to_add <- row_levels[row_levels %in% rownames(confusion_matrix) == FALSE]
   cols_to_add <- row_levels[row_levels %in% colnames(confusion_matrix) == FALSE]  # Using row_levels since column_levels is removed
   confusion_matrix <- add_zeros_to_table(confusion_matrix, rows_to_add, cols_to_add)
