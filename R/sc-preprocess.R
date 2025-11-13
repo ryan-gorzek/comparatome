@@ -86,11 +86,10 @@ PreprocessData <- function(data_path, sample_IDs, project_name, mapping_path = N
 #'  seurat.obj.opossum <- MapGenes(seurat.obj.opossum, ../Opossum_Mouse_GeneMapping_EnsemblBioMart.txt)
 #' }
 MapGenes <- function(obj, mapping_path, use_ids = FALSE) {
-  
   # Read the orthology table
   genes.mapping <- read.csv(mapping_path)
-  # Remove paralogs (keeping the first)
-  para.idx <- genes.mapping[, 1] %in% unique(genes.mapping[duplicated(genes.mapping[, 1]), 1])
+  # Remove paralogs (keeping the first) using the Ensembl IDs, as genes may be empty
+  para.idx <- genes.mapping[, 2] %in% unique(genes.mapping[duplicated(genes.mapping[, 2]), 2])
   genes.mapping <- genes.mapping[!para.idx,]
   # Store columns of interest separately
   genes.mapping.self <- as.list(genes.mapping[, 1])
