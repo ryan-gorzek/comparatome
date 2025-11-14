@@ -84,123 +84,209 @@ LabelCells <- function(obj, subclass_resolution) {
 
 #' LabelByNearestNeighbors
 #'
-#' Propagate labels to unlabeled cells based on UMAP nearest neighbor voting.
+#' Propagate labels to unlabeled cells based on nearest neighbor voting in reduced dimensional space.
+#' 
 #' For cells marked as "None" in the specified identity column, this function finds their 
-#' k nearest neighbors in UMAP space and assigns labels if a sufficient fraction of 
-#' neighbors agree on the label.
+#' k nearest neighbors in a chosen embedding space (PCA, UMAP, etc.) and assigns labels 
+#' if a sufficient fraction of neighbors agree on the label. This approach is useful for
+#' refining cell type assignments after initial clustering or for labeling ambiguous cells
+#' based on their similarity to confidently labeled cells.
 #'
-#' @param obj Seurat object with UMAP reduction and existing labels
-#' @param ident Character, name of metadata column containing labels (with some cells marked "None")
-#' @param fraction Numeric, minimum fraction of neighbors required to agree for label assignment (default: 0.6)
-#' @param n.neighbors Integer, number of nearest neighbors to consider for voting (default: 20)
+#' @param obj Seurat object with the specified reduction and existing labels in metadata.
+#' @param ident Character string specifying the name of the metadata column containing labels.
+#'   Cells marked as "None" or NA are considered unlabeled and candidates for label propagation.
+#'   The original column is not modified.
+#' @param output_col Character string specifying the name of the output metadata column.
+#'   Default is `[ident]_nn`. Choose descriptive names when testing multiple parameter
+#'   combinations (e.g., "subclass_nn_pca30", "subclass_nn_umap").
+#' @param reduction Character string specifying which dimensional reduction to use for
+#'   nearest neighbor search. Default is "pca". Common options include "pca", "umap",
+#'   "tsne", or any other reduction stored in the Seurat object.
+#' @param dims Integer vector specifying which dimensions to use from the reduction.
+#'   Default is 1:30 (first 30 dimensions). For PCA, using more dimensions captures
+#'   more variation but may include noise. For UMAP/tSNE, typically all dimensions
+#'   (e.g., 1:2) are used.
+#' @param fraction Numeric value between 0 and 1 specifying the minimum fraction of 
+#'   neighbors required to agree for label assignment. Default is 0.6 (60% agreement).
+#'   Higher values increase stringency and reduce false assignments.
+#' @param n.neighbors Integer specifying the number of nearest neighbors to consider 
+#'   for voting. Default is 20. Larger values smooth over local noise but may blur
+#'   boundaries between cell types.
 #'
-#' @return Seurat object with new metadata column named [ident]_nn containing propagated labels.
-#'   Cells that were originally labeled remain NA in the new column.
-#'   Cells that don't meet the threshold remain "None".
+#' @return Seurat object with new metadata column named according to `output_col`.
+#'   The original `ident` column is not modified.
+#'   Output column values:
+#'   \itemize{
+#'     \item Originally labeled cells: NA (no change needed)
+#'     \item Unlabeled cells meeting threshold: assigned label
+#'     \item Unlabeled cells not meeting threshold: "None"
+#'   }
 #'
 #' @details
-#' Label propagation workflow:
-#' \enumerate{
-#'   \item Extract UMAP coordinates for all cells
-#'   \item Identify labeled vs unlabeled cells (unlabeled = "None")
-#'   \item For each unlabeled cell, find k nearest neighbors using FNN::get.knnx
-#'   \item Calculate the fraction of neighbors with each label
-#'   \item If the top label exceeds the threshold, assign it; otherwise keep "None"
-#' }
-#'
-#' Requires the FNN package for efficient nearest neighbor search.
-#' Originally labeled cells receive NA in the output column.
-#'
+#' **Label propagation workflow:**
+#' 
+#' 1. Extract coordinates from specified reduction (e.g., PC1-PC30)
+#' 2. Identify labeled cells (ident != "None" and !is.na(ident)) vs unlabeled cells
+#' 3. For each unlabeled cell, find k nearest neighbors using FNN::get.knnx
+#' 4. Calculate the fraction of neighbors with each label
+#' 5. Assign the most common label if it exceeds the threshold fraction
+#' 6. Otherwise, keep the cell labeled as "None"
+#' 
+#' **Choosing the reduction and dimensions:**
+#' 
+#' - **PCA** (default, dims = 1:30): Recommended for most cases. PCA captures global
+#'   structure and is less sensitive to local noise. Using 20-50 dimensions balances
+#'   biological signal with noise. PCA-based labeling works well even when UMAP/tSNE
+#'   show complex structure.
+#'   
+#' - **UMAP** (dims = 1:2): Uses the 2D UMAP embedding. Emphasizes local neighborhood
+#'   structure and can be effective when cell types form distinct visual clusters.
+#'   However, UMAP can create artificial separation, so use with caution.
+#'   
+#' - **Custom reductions**: Any reduction in the Seurat object can be used. For
+#'   integrated analyses, "integrated" or "harmony" reductions are appropriate.
+#' 
+#' **Parameter tuning:**
+#' 
+#' - Increase `fraction` (e.g., 0.7-0.8) for more conservative labeling
+#' - Increase `n.neighbors` (e.g., 30-50) for smoother boundaries
+#' - Decrease both for more aggressive labeling of ambiguous cells
+#' 
+#' **Limitations:**
+#' 
+#' - Assumes labeled cells are representative of all cell states
+#' - Cannot identify novel cell types (will assign to nearest existing type)
+#' - Performance depends on quality of initial labels and embedding
+#' 
 #' @export
 #' @family labeling
 #'
 #' @examples
 #' \dontrun{
-#'   # After partial labeling, propagate to ambiguous cells
+#'   # Default: Use PCA (first 30 dimensions) for label propagation
 #'   obj <- LabelByNearestNeighbors(
 #'     obj, 
 #'     ident = "subclass",
-#'     fraction = 0.7,  # Require 70% agreement
+#'     output_col = "subclass_nn",
+#'     fraction = 0.7,
 #'     n.neighbors = 30
 #'   )
 #'   
-#'   # Check how many cells were labeled
-#'   table(obj$subclass_nn)
+#'   # Original column unchanged
+#'   any(is.na(obj$subclass))  # Still TRUE if there were NAs
+#'   
+#'   # Test with UMAP embedding
+#'   obj <- LabelByNearestNeighbors(
+#'     obj,
+#'     ident = "subclass",
+#'     output_col = "subclass_nn_umap",
+#'     reduction = "umap",
+#'     dims = 1:2,
+#'     fraction = 0.6,
+#'     n.neighbors = 20
+#'   )
+#'   
+#'   # Compare results
+#'   table(obj$subclass_nn, useNA = "ifany")
+#'   table(obj$subclass_nn_umap, useNA = "ifany")
 #' }
-LabelByNearestNeighbors <- function(obj, ident, fraction = 0.6, n.neighbors = 20) {
+LabelByNearestNeighbors <- function(obj, ident, output_col = NULL, reduction = "pca", 
+                                    dims = 1:30, fraction = 0.6, n.neighbors = 20) {
   
   library(Seurat)
-  library(FNN)  # For fast nearest neighbor search
+  library(FNN)
   library(dplyr)
   
-  obj[[ident]][is.na(obj[[ident]])] <- "None"
+  # Set default output column name if not provided
+  if (is.null(output_col)) {
+    output_col <- paste0(ident, "_nn")
+  }
   
-  # 1. Get UMAP embeddings
-  umap_embeddings <- Embeddings(obj, "umap")
+  # Work with a copy of the labels to avoid modifying original column
+  labels <- obj[[ident]][, 1]
   
-  # Extract metadata
-  meta <- obj@meta.data
+  # Treat NA and "None" as unlabeled
+  labels[is.na(labels)] <- "None"
   
-  # Get cell names directly
-  labeled_cells <- rownames(meta)[meta[[ident]] != "None"]
-  unlabeled_cells <- rownames(meta)[meta[[ident]] == "None"]
+  # Validate that the reduction exists
+  if (!reduction %in% names(obj@reductions)) {
+    stop(paste0("Reduction '", reduction, "' not found in Seurat object. ",
+                "Available reductions: ", paste(names(obj@reductions), collapse = ", ")))
+  }
+  
+  # Extract embeddings from specified reduction
+  embeddings <- Embeddings(obj, reduction)
+  
+  # Validate dimensions
+  max_dim <- ncol(embeddings)
+  if (max(dims) > max_dim) {
+    stop(paste0("Requested dimensions exceed available dimensions. ",
+                "Reduction '", reduction, "' has ", max_dim, " dimensions, ",
+                "but dims requests up to ", max(dims)))
+  }
+  
+  # Subset to requested dimensions
+  embeddings <- embeddings[, dims, drop = FALSE]
+  
+  # Identify labeled and unlabeled cells using our working copy
+  labeled_cells <- rownames(obj@meta.data)[labels != "None"]
+  unlabeled_cells <- rownames(obj@meta.data)[labels == "None"]
   all_cells <- c(labeled_cells, unlabeled_cells)
   
-  # 3. Find k nearest neighbors for each unlabeled cell
-  k <- n.neighbors  # Number of neighbors to consider
-  # Nearest neighbors: query unlabeled cells against labeled cells
+  # Find k nearest neighbors for each unlabeled cell
   nn <- get.knnx(
-    data = umap_embeddings[all_cells, ],    # Reference (labeled cells)
-    query = umap_embeddings[unlabeled_cells, ], # Query (unlabeled cells)
-    k = k
+    data = embeddings[all_cells, , drop = FALSE],      # All cells as reference
+    query = embeddings[unlabeled_cells, , drop = FALSE], # Unlabeled cells as query
+    k = n.neighbors
   )
   
-  # 4. For each unlabeled cell, check the subclass of neighbors
+  # For each unlabeled cell, collect labels from neighbors
   neighbor_idents <- vector("list", length = nrow(nn$nn.index))
   
   for (i in 1:nrow(nn$nn.index)) {
     neighbor_indices <- nn$nn.index[i, ]
     neighbor_cells <- all_cells[neighbor_indices]
-    
-    # Save subclass labels
-    neighbor_idents[[i]] <- obj[[ident]][neighbor_cells, 1]
+    # Use working copy of labels
+    neighbor_idents[[i]] <- labels[match(neighbor_cells, rownames(obj@meta.data))]
   }
   
-  # 5. Summarize neighbor subclass proportions per cell
-  all_idents <- unique(obj[[ident]][all_cells, 1])
+  # Calculate fraction of neighbors with each label
+  all_idents <- unique(labels[match(all_cells, rownames(obj@meta.data))])
   neighbor_subclass_fractions <- lapply(neighbor_idents, function(idents) {
     tbl <- table(factor(idents, levels = all_idents))
     prop.table(tbl)
   })
   
-  # Combine into a dataframe
+  # Combine into dataframe
   neighbor_fraction_df <- do.call(rbind, neighbor_subclass_fractions)
   rownames(neighbor_fraction_df) <- unlabeled_cells
   
-  # Threshold for assignment
-  threshold <- fraction
-  
+  # Assign labels based on threshold
   assigned_idents <- sapply(1:nrow(neighbor_fraction_df), function(i) {
     fractions <- neighbor_fraction_df[i, ]
     fractions_no_none <- fractions[names(fractions) != "None"]
     
+    # If no labeled neighbors, keep as "None"
     if (length(fractions_no_none) == 0 || all(fractions_no_none == 0)) {
       return("None")
     }
     
+    # Find most common label
     top_subclass <- names(fractions_no_none)[which.max(fractions_no_none)]
     
-    if (max(fractions_no_none) >= threshold) {
+    # Assign if threshold is met
+    if (max(fractions_no_none) >= fraction) {
       return(top_subclass)
     } else {
       return("None")
     }
   })
   
-  # Add back to Seurat object's metadata
-  obj[[paste0(ident, "_nn")]] <- "None"
-  obj[[paste0(ident, "_nn")]][rownames(neighbor_fraction_df), 1] <- assigned_idents
-  obj[[paste0(ident, "_nn")]][labeled_cells, 1] <- NA
+  # Add results to metadata
+  # Originally labeled cells get NA, unlabeled cells get assigned labels or "None"
+  obj[[output_col]] <- "None"
+  obj[[output_col]][rownames(neighbor_fraction_df), 1] <- assigned_idents
+  obj[[output_col]][labeled_cells, 1] <- NA
   
   return(obj)
 }
