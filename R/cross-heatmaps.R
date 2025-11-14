@@ -97,7 +97,7 @@ IntegratedClusterOverlapHeatmap <- function(integrated.obj, integvar.col, ident.
     overlap_matrix <- overlap_matrices[[name]]
     
     # Melt the matrix for ggplot
-    melted <- melt(overlap_matrix)
+    melted <- reshape2::melt(overlap_matrix)
     colnames(melted) <- c("row", "col", "Percentage")
     
     # Create the heatmap plot
