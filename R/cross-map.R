@@ -260,7 +260,7 @@ MapObject <- function(seurat_obj1, seurat_obj2, idents, assay = "SCT", do.norm =
       objs <- lapply(objs, function(obj) {
         obj <- RunPCA(obj, npcs = 30, assay = "integrated", verbose = FALSE) %>%
                RunUMAP(reduction = "pca", dims = 1:30, assay = "integrated", 
-                      return.model = TRUE, verbose = FALSE)
+                       return.model = TRUE, verbose = FALSE)
         return(obj)
       })
     } else if (assay == "SCT") {
@@ -269,7 +269,7 @@ MapObject <- function(seurat_obj1, seurat_obj2, idents, assay = "SCT", do.norm =
                           verbose = FALSE) %>%
                RunPCA(npcs = 30, verbose = FALSE) %>%
                RunUMAP(reduction = "pca", dims = 1:30, return.model = TRUE, 
-                      verbose = FALSE)
+                       verbose = FALSE)
         return(obj)
       })
     }
@@ -286,8 +286,10 @@ MapObject <- function(seurat_obj1, seurat_obj2, idents, assay = "SCT", do.norm =
   anchors <- FindTransferAnchors(
     reference = reference, 
     query = query, 
+    reference.assay = ifelse(assay == "SCT", "SCT", NULL),
     reference.reduction = "pca", 
-    dims = 1:30
+    dims = 1:30,
+    normalization.method = ifelse(assay == "SCT", "SCT", "LogNormalize")
   )
   
   obj.mapped <- MapQuery(

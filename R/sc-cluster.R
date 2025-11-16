@@ -11,13 +11,13 @@
 #' \dontrun{
 #'  # Example usage will be added
 #' }
-ClusterWithSCT <- function(obj, resolutions, n_PCs = 30) {
+ClusterWithSCT <- function(obj, resolutions, n_PCs = 30, umap.return.model = FALSE) {
   
   # Run Seurat processing pipeline
   obj <- SCTransform(obj, vst.flavor = "v2", return.only.var.genes = FALSE, verbose = FALSE) %>%
          RunPCA(npcs = n_PCs, verbose = FALSE) %>%
          FindNeighbors(reduction = "pca", dims = 1:n_PCs, verbose = FALSE) %>%
-         RunUMAP(reduction = "pca", dims = 1:n_PCs, verbose = FALSE)
+         RunUMAP(reduction = "pca", dims = 1:n_PCs, return.model = umap.return.model, verbose = FALSE)
   # CLuster at each specified resolution, automatically stored as SCT_snn_res.[resolution]
   for (res in resolutions) {
     obj <- FindClusters(obj, resolution = res, algorithm = 4, method = "igraph")

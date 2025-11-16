@@ -111,7 +111,6 @@ SaveIdentConfusionMatrices <- function(obj, subclass.labels, ident.labels, savep
 #' @param subclass.order Character vector specifying the order of subclasses for plotting
 #' @param savepath Base directory path where confusion matrix plots will be saved
 #' @param return.plot Logical, whether to return the plot object (default: FALSE)
-#' @param colormap_upper_limit Numeric, upper limit for color scale (default: NULL)
 #' @param assay Assay to use for mapping (default: "SCT")
 #'
 #' @return NULL or ggplot object if return.plot = TRUE
@@ -133,7 +132,7 @@ SaveIdentConfusionMatrices <- function(obj, subclass.labels, ident.labels, savep
 #'     savepath = "output/confusion_matrices/"
 #'   )
 #' }
-SaveSubclassConfusionMatrices <- function(obj, subclass.cols, subclass.order, savepath, return.plot = FALSE, colormap_upper_limit = NULL, assay = "SCT") {
+SaveSubclassConfusionMatrices <- function(obj, subclass.cols, subclass.order, savepath, return.plot = FALSE, assay = "SCT") {
   
   DefaultAssay(obj) <- assay
   
@@ -159,8 +158,7 @@ SaveSubclassConfusionMatrices <- function(obj, subclass.cols, subclass.order, sa
     obj.mapped <- MapObject(obj.train, obj.test, idents = sbcl, assay = assay, do.norm = FALSE)
     
     # Generate confusion matrix
-    sbcl.levels <- levels(Idents(obj))
-    confusion_plot <- PlotMappedLabelsHeatmap(obj.mapped, sbcl, sbcl.levels, normalize = "row")
+    confusion_plot <- PlotMappedLabelsHeatmap(obj.mapped, sbcl, subclass.order, ident.order = subclass.order, normalize = "row")
     
     if (!is.null(confusion_plot)) {
       confusion_plot <- confusion_plot +

@@ -11,6 +11,8 @@
 #'   or NULL for raw counts (default: NULL)
 #' @param ident.order Character vector specifying custom order for labels in plot. If NULL, uses alphanumeric sorting with 
 #'   intelligent handling of suffixes (default: NULL)
+#' @param true.column Character, optional name of metadata column containing true labels. If NULL, uses column_name (default: NULL)
+#' @param pred.column Character, optional name of metadata column containing predicted labels. If NULL, uses "predicted.[column_name]" (default: NULL)
 #' @param col.low Color for low values in heatmap gradient (default: "white")
 #' @param col.high Color for high values in heatmap gradient (default: "red")
 #' @param x.lab.rot Logical, whether to rotate x-axis labels 90 degrees (default: TRUE)
@@ -20,8 +22,8 @@
 #' @details
 #' The function expects the Seurat object to contain:
 #' \itemize{
-#'   \item Original labels in metadata column specified by column_name
-#'   \item Predicted labels in column named "predicted.[column_name]" (created by MapObject)
+#'   \item Original labels in metadata column specified by column_name or true.column
+#'   \item Predicted labels in column named "predicted.[column_name]" (created by MapObject) or pred.column
 #' }
 #'
 #' Matrix construction:
@@ -50,16 +52,30 @@
 #'     column_levels = c("IT_A", "IT_B", "L5PT", "L6CT"),
 #'     normalize = "row"
 #'   )
+#'   
+#'   # With custom column names
+#'   p <- PlotMappedLabelsHeatmap(
+#'     data = obj.mapped,
+#'     column_name = "cluster",
+#'     column_levels = c("IT_A", "IT_B", "L5PT", "L6CT"),
+#'     true.column = "SCT_snn_res.0.2",
+#'     pred.column = "predicted.subclass",
+#'     normalize = "row"
+#'   )
 #'   print(p)
 #' }
-PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize = NULL, ident.order = NULL, col.low = "white", col.high = "red", x.lab.rot = TRUE) {
+PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize = NULL, ident.order = NULL, true.column = NULL, pred.column = NULL, col.low = "white", col.high = "red", x.lab.rot = TRUE) {
+
+  # Use custom column names if provided, otherwise default to column_name and predicted.column_name
+  true.col <- if (!is.null(true.column)) true.column else column_name
+  pred.col <- if (!is.null(pred.column)) pred.column else paste0("predicted.", column_name)
   
   # Create confusion matrix
-  confusion_matrix <- table(as.character(unlist(data[[column_name]])), as.character(unlist(data[[paste0("predicted.", column_name)]])))
+  confusion_matrix <- table(as.character(unlist(data[[true.col]])), as.character(unlist(data[[pred.col]])))
   confusion_matrix <- as.matrix(confusion_matrix)
   
   # Ensure all possible levels are present in the confusion matrix
-  row_levels <- as.character(unlist(unique(data[[column_name]])))
+  row_levels <- as.character(unlist(unique(data[[true.col]])))
   col_levels <- column_levels
   rows_to_add <- row_levels[row_levels %in% rownames(confusion_matrix) == FALSE]
   cols_to_add <- col_levels[col_levels %in% colnames(confusion_matrix) == FALSE]
@@ -77,7 +93,7 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
     if (normalize %in% c("row", "col")) {
       melted <- ddply(melted, normalize, transform, Percentage = Count / sum(Count) * 100)
     } else {
-    melted$Percentage <- melted$Count
+      melted$Percentage <- melted$Count
     }
   }
   
@@ -106,8 +122,8 @@ PlotMappedLabelsHeatmap <- function(data, column_name, column_levels, normalize 
     scale_fill_gradient(low = col.low, high = col.high, limits = c(0, max(melted$Percentage))) + 
     geom_text(aes(label = sprintf("%.1f", Percentage)), size = fontsize) +
     theme_bw() + 
-    ylab(column_name) + 
-    xlab(paste0("predicted_", column_name)) + 
+    ylab(true.col) + 
+    xlab(pred.col) + 
     theme(
       axis.text.x = element_text(size = 16, face = "italic", hjust = 0, angle = ifelse(x.lab.rot, 90, 0)),
       axis.text.y = element_text(size = 16, face = "italic"),
