@@ -228,16 +228,70 @@ SubsampleClasses <- function(seurat_obj, meta_column) {
 
 #' SplitObjectHalf
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the subsampling family.
-#' @param seurat_object (auto) parameter
-#' @param seed (auto) parameter
-#' @return (auto) value; see function body.
+#' Randomly split a Seurat object into two equal-sized subsets for within-dataset validation.
+#' Creates a 50-50 split of cells, useful for assessing mapping consistency, testing
+#' batch integration quality, or comparing full vs shared gene space mapping accuracy.
+#'
+#' @param seurat_object Seurat object to split
+#' @param seed Integer seed for random number generation, ensuring reproducibility (default: 123)
+#'
+#' @return List containing two Seurat objects:
+#'   \itemize{
+#'     \item \code{obj1}: First half of cells (n/2 cells where n is total)
+#'     \item \code{obj2}: Second half of cells (remaining cells)
+#'   }
+#'   Both objects retain all features and metadata from the original object.
+#'
+#' @details
+#' **Splitting strategy:**
+#' 
+#' \enumerate{
+#'   \item Randomly permute cell indices
+#'   \item Assign first half to obj1
+#'   \item Assign second half to obj2
+#'   \item Preserve all gene features and metadata in both
+#' }
+#'
+#' **Use cases:**
+#' 
+#' \itemize{
+#'   \item \strong{Within-species mapping validation}: Split dataset, map one half to the other,
+#'     assess label transfer accuracy as a baseline for cross-species mapping
+#'   \item \strong{Gene space comparison}: Compare mapping accuracy in full transcriptome vs
+#'     shared ortholog space by creating splits with different gene sets
+#'   \item \strong{Batch effect assessment}: Evaluate whether technical variation affects
+#'     mapping more than biological variation
+#'   \item \strong{Subsampling workflows}: Generate independent subsets for bootstrap or
+#'     jackknife analyses
+#' }
+#'
+#' Typically used with MapObjects to perform reciprocal mapping between halves.
+#' Seed parameter ensures splits are reproducible across analyses.
+#'
 #' @export
 #' @family subsampling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Basic 50-50 split for within-species validation
+#'   obj.full <- readRDS("opossum_v1_glutamatergic_processed.rds")
+#'   objs.split <- SplitObjectHalf(obj.full)
+#'   
+#'   # Map between halves to assess consistency
+#'   objs.mapped <- MapObjects(objs.split[[1]], objs.split[[2]], idents = "subclass")
+#'   acc <- MappingAccuracy(merge(objs.mapped[[1]], objs.mapped[[2]]), "subclass")
+#'   
+#'   # Compare full vs shared gene space
+#'   shared.genes <- intersect(rownames(obj.opossum), rownames(obj.mouse))
+#'   obj.shared <- obj.full[shared.genes,]
+#'   
+#'   # Split in full space
+#'   objs.full <- SplitObjectHalf(obj.full, seed = 42)
+#'   objs.full.mapped <- MapObjects(objs.full[[1]], objs.full[[2]], idents = "subclass")
+#'   
+#'   # Split in shared space
+#'   objs.shared <- SplitObjectHalf(obj.shared, seed = 42)
+#'   objs.shared.mapped <- MapObjects(objs.shared[[1]], objs.shared[[2]], idents = "subclass")
 #' }
 SplitObjectHalf <- function(seurat_object, seed = 123) {
   # Get the number of cells

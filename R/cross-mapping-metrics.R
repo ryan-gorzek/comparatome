@@ -385,16 +385,96 @@ PlotMappingQualityHeatmap <- function(data, column_name, column_levels, value_co
 
 #' MappingAccuracy
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the mapping-metrics family.
-#' @param data (auto) parameter
-#' @param column_name (auto) parameter
-#' @return (auto) value; see function body.
+#' Calculate per-class mapping accuracy from label transfer results.
+#' Computes the proportion of correctly mapped cells for each class by comparing
+#' true labels to predicted labels in a mapped Seurat object. Used to quantify
+#' mapping quality in cross-species or within-species validation analyses.
+#'
+#' @param data Seurat object containing both true and predicted labels from MapObject or MapObjects.
+#'   Must have columns \code{[column_name]} and \code{predicted.[column_name]} in metadata.
+#' @param column_name Character string specifying metadata column containing true labels
+#'   (e.g., "subclass", "type")
+#'
+#' @return Data frame with two columns:
+#'   \itemize{
+#'     \item \code{Subclass}: Label names from the column_name metadata field
+#'     \item \code{Accuracy}: Proportion of correctly mapped cells (0-1) for each label.
+#'       Calculated as diagonal / row sum in confusion matrix.
+#'   }
+#'   Returns NA for classes with zero cells.
+#'
+#' @details
+#' **Accuracy calculation:**
+#' 
+#' For each class:
+#' \deqn{Accuracy = \frac{\text{True Positives}}{\text{Total Actual}}}
+#' 
+#' Where:
+#' \itemize{
+#'   \item True Positives = cells correctly predicted as that class
+#'   \item Total Actual = all cells truly belonging to that class
+#' }
+#'
+#' **Workflow:**
+#' 
+#' \enumerate{
+#'   \item Construct confusion matrix from true vs predicted labels
+#'   \item Add zero-filled rows/columns for missing classes
+#'   \item Extract diagonal elements (correct predictions)
+#'   \item Divide by row sums (total cells per true class)
+#' }
+#'
+#' **Use cases:**
+#' 
+#' \itemize{
+#'   \item \strong{Within-species validation}: Baseline accuracy for 50-50 split mapping,
+#'     expected to be high (~95-100%) for well-separated cell types
+#'   \item \strong{Cross-species comparison}: Quantify how well cell types correspond
+#'     between species; lower accuracy may indicate divergence or ambiguous mapping
+#'   \item \strong{Gene space effects}: Compare accuracy in full transcriptome vs
+#'     shared ortholog space to assess impact of gene availability
+#'   \item \strong{Class-specific challenges}: Identify cell types with poor mapping
+#'     that may need additional markers or refinement
+#' }
+#'
+#' Typically plotted as scatter plot comparing full vs shared space accuracy or
+#' used to summarize overall mapping quality across multiple classes.
+#'
 #' @export
 #' @family mapping-metrics
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Within-species 50-50 mapping accuracy
+#'   obj.full <- readRDS("opossum_v1_glutamatergic_processed.rds")
+#'   objs.split <- SplitObjectHalf(obj.full)
+#'   objs.mapped <- MapObjects(objs.split[[1]], objs.split[[2]], idents = "subclass")
+#'   
+#'   # Merge both directions and calculate accuracy
+#'   obj.merged <- merge(objs.mapped[[1]], objs.mapped[[2]])
+#'   acc <- MappingAccuracy(obj.merged, "subclass")
+#'   
+#'   # Cross-species mapping accuracy
+#'   objs.cross <- MapObjects(obj.opossum, obj.mouse, idents = "subclass")
+#'   acc.opossum <- MappingAccuracy(objs.cross[[1]], "subclass")
+#'   
+#'   # Compare full vs shared gene space
+#'   obj.full <- obj.opossum
+#'   obj.shared <- obj.opossum[shared.genes,]
+#'   
+#'   objs.full <- SplitObjectHalf(obj.full)
+#'   objs.shared <- SplitObjectHalf(obj.shared)
+#'   
+#'   objs.full.mapped <- MapObjects(objs.full[[1]], objs.full[[2]], idents = "subclass")
+#'   objs.shared.mapped <- MapObjects(objs.shared[[1]], objs.shared[[2]], idents = "subclass")
+#'   
+#'   acc.full <- MappingAccuracy(merge(objs.full.mapped[[1]], objs.full.mapped[[2]]), "subclass")
+#'   acc.shared <- MappingAccuracy(merge(objs.shared.mapped[[1]], objs.shared.mapped[[2]]), "subclass")
+#'   
+#'   # Plot comparison
+#'   df <- merge(acc.full, acc.shared, by = "Subclass", suffixes = c("_Full", "_Shared"))
+#'   ggplot(df, aes(x = Accuracy_Full, y = Accuracy_Shared, color = Subclass)) +
+#'     geom_point() + geom_abline(slope = 1)
 #' }
 MappingAccuracy <- function(data, column_name) {
   

@@ -112,6 +112,17 @@ LabelCells <- function(obj, subclass_resolution) {
 #' @param n.neighbors Integer specifying the number of nearest neighbors to consider 
 #'   for voting. Default is 20. Larger values smooth over local noise but may blur
 #'   boundaries between cell types.
+#' @param reference_pool Character string specifying which cells to use as reference for
+#'   nearest neighbor search. Options:
+#'   \itemize{
+#'     \item "all" (default): Use all cells (labeled + unlabeled) as reference pool.
+#'       This allows unlabeled cells to find each other as neighbors. Use when cells
+#'       integrate well together and you want to propagate labels across similar unlabeled cells.
+#'     \item "labeled": Use only already-labeled cells as reference pool. More conservative
+#'       approach that prevents poorly-integrated cells from influencing each other.
+#'       Recommended for iterative integration workflows where unlabeled cells may be
+#'       poorly integrated or represent novel cell types.
+#'   }
 #'
 #' @return Seurat object with new metadata column named according to `output_col`.
 #'   The original `ident` column is not modified.
@@ -127,11 +138,26 @@ LabelCells <- function(obj, subclass_resolution) {
 #' 
 #' 1. Extract coordinates from specified reduction (e.g., PC1-PC30)
 #' 2. Identify labeled cells (ident != "None" and !is.na(ident)) vs unlabeled cells
-#' 3. For each unlabeled cell, find k nearest neighbors using FNN::get.knnx
-#' 4. Calculate the fraction of neighbors with each label
-#' 5. Assign the most common label if it exceeds the threshold fraction
-#' 6. Otherwise, keep the cell labeled as "None"
+#' 3. Determine reference pool based on `reference_pool` parameter
+#' 4. For each unlabeled cell, find k nearest neighbors in reference pool
+#' 5. Calculate the fraction of neighbors with each label
+#' 6. Assign the most common label if it exceeds the threshold fraction
+#' 7. Otherwise, keep the cell labeled as "None"
 #' 
+#' **Choosing reference_pool:**
+#' 
+#' - **"all"**: Default behavior. Uses all cells as reference pool. Appropriate when:
+#'   - All cells integrate well in the embedding space
+#'   - You want to propagate labels across clusters of similar unlabeled cells
+#'   - Running single-pass labeling on well-integrated data
+#'   
+#' - **"labeled"**: Uses only labeled cells as reference. Recommended when:
+#'   - Running iterative integration with multiple rounds
+#'   - Unlabeled cells form separate clusters in UMAP (poor integration)
+#'   - You want to prevent error propagation from ambiguous cells
+#'   - Unlabeled cells may represent novel cell types or technical artifacts
+#'   - Working with spatial transcriptomics where spatial cells may not integrate perfectly
+#'
 #' **Choosing the reduction and dimensions:**
 #' 
 #' - **PCA** (default, dims = 1:30): Recommended for most cases. PCA captures global
@@ -151,29 +177,39 @@ LabelCells <- function(obj, subclass_resolution) {
 #' - Increase `fraction` (e.g., 0.7-0.8) for more conservative labeling
 #' - Increase `n.neighbors` (e.g., 30-50) for smoother boundaries
 #' - Decrease both for more aggressive labeling of ambiguous cells
+#' - Use `reference_pool = "labeled"` for more conservative labeling in iterative workflows
 #' 
 #' **Limitations:**
 #' 
 #' - Assumes labeled cells are representative of all cell states
-#' - Cannot identify novel cell types (will assign to nearest existing type)
+#' - Cannot identify novel cell types (will assign to nearest existing type or "None")
 #' - Performance depends on quality of initial labels and embedding
+#' - With `reference_pool = "all"`, poorly integrated cells can influence each other
 #' 
 #' @export
 #' @family labeling
 #'
 #' @examples
 #' \dontrun{
-#'   # Default: Use PCA (first 30 dimensions) for label propagation
+#'   # Default: Use all cells as reference
 #'   obj <- LabelByNearestNeighbors(
 #'     obj, 
 #'     ident = "subclass",
 #'     output_col = "subclass_nn",
 #'     fraction = 0.7,
-#'     n.neighbors = 30
+#'     n.neighbors = 30,
+#'     reference_pool = "all"
 #'   )
 #'   
-#'   # Original column unchanged
-#'   any(is.na(obj$subclass))  # Still TRUE if there were NAs
+#'   # Conservative: Use only labeled cells as reference (recommended for spatial)
+#'   obj <- LabelByNearestNeighbors(
+#'     obj,
+#'     ident = "subclass",
+#'     output_col = "subclass_nn_labeled",
+#'     fraction = 0.6,
+#'     n.neighbors = 100,
+#'     reference_pool = "labeled"
+#'   )
 #'   
 #'   # Test with UMAP embedding
 #'   obj <- LabelByNearestNeighbors(
@@ -183,19 +219,25 @@ LabelCells <- function(obj, subclass_resolution) {
 #'     reduction = "umap",
 #'     dims = 1:2,
 #'     fraction = 0.6,
-#'     n.neighbors = 20
+#'     n.neighbors = 20,
+#'     reference_pool = "labeled"
 #'   )
 #'   
 #'   # Compare results
-#'   table(obj$subclass_nn, useNA = "ifany")
-#'   table(obj$subclass_nn_umap, useNA = "ifany")
+#'   table(obj$subclass_nn, obj$subclass_nn_labeled, useNA = "ifany")
 #' }
 LabelByNearestNeighbors <- function(obj, ident, output_col = NULL, reduction = "pca", 
-                                    dims = 1:30, fraction = 0.6, n.neighbors = 20) {
+                                    dims = 1:30, fraction = 0.6, n.neighbors = 20, 
+                                    reference_pool = "all") {
   
   library(Seurat)
   library(FNN)
   library(dplyr)
+  
+  # Validate reference_pool parameter
+  if (!reference_pool %in% c("all", "labeled")) {
+    stop("reference_pool must be either 'all' or 'labeled'")
+  }
   
   # Set default output column name if not provided
   if (is.null(output_col)) {
@@ -231,12 +273,18 @@ LabelByNearestNeighbors <- function(obj, ident, output_col = NULL, reduction = "
   # Identify labeled and unlabeled cells using our working copy
   labeled_cells <- rownames(obj@meta.data)[labels != "None"]
   unlabeled_cells <- rownames(obj@meta.data)[labels == "None"]
-  all_cells <- c(labeled_cells, unlabeled_cells)
+  
+  # Determine reference cells based on reference_pool parameter
+  if (reference_pool == "all") {
+    reference_cells <- c(labeled_cells, unlabeled_cells)
+  } else {  # reference_pool == "labeled"
+    reference_cells <- labeled_cells
+  }
   
   # Find k nearest neighbors for each unlabeled cell
   nn <- get.knnx(
-    data = embeddings[all_cells, , drop = FALSE],      # All cells as reference
-    query = embeddings[unlabeled_cells, , drop = FALSE], # Unlabeled cells as query
+    data = embeddings[reference_cells, , drop = FALSE],      # Reference pool
+    query = embeddings[unlabeled_cells, , drop = FALSE],     # Unlabeled cells as query
     k = n.neighbors
   )
   
@@ -245,13 +293,13 @@ LabelByNearestNeighbors <- function(obj, ident, output_col = NULL, reduction = "
   
   for (i in 1:nrow(nn$nn.index)) {
     neighbor_indices <- nn$nn.index[i, ]
-    neighbor_cells <- all_cells[neighbor_indices]
+    neighbor_cells <- reference_cells[neighbor_indices]
     # Use working copy of labels
     neighbor_idents[[i]] <- labels[match(neighbor_cells, rownames(obj@meta.data))]
   }
   
   # Calculate fraction of neighbors with each label
-  all_idents <- unique(labels[match(all_cells, rownames(obj@meta.data))])
+  all_idents <- unique(labels[match(reference_cells, rownames(obj@meta.data))])
   neighbor_subclass_fractions <- lapply(neighbor_idents, function(idents) {
     tbl <- table(factor(idents, levels = all_idents))
     prop.table(tbl)
@@ -289,6 +337,379 @@ LabelByNearestNeighbors <- function(obj, ident, output_col = NULL, reduction = "
   obj[[output_col]][labeled_cells, 1] <- NA
   
   return(obj)
+}
+
+
+# Nearest Neighbor Diagnostics Function
+# Call this after each integration round to optimize parameters
+diagnose_nn_labeling <- function(obj, ident, reduction = "pca", dims = 1:30, 
+                                 reference_pool = "labeled", 
+                                 method_col = "method",
+                                 spatial_value = "Stereo-seq",
+                                 ref_value = "snRNA-seq") {
+  
+  library(ggplot2)
+  library(FNN)
+  library(patchwork)
+  
+  cat(sprintf("\n========================================\n"))
+  cat(sprintf("NN LABELING DIAGNOSTICS\n"))
+  cat(sprintf("========================================\n"))
+  cat(sprintf("Ident: %s\n", ident))
+  cat(sprintf("Reduction: %s (dims %s)\n", reduction, paste(range(dims), collapse="-")))
+  cat(sprintf("Reference pool: %s\n", reference_pool))
+  cat(sprintf("========================================\n\n"))
+  
+  # Get labels
+  labels <- obj[[ident]][, 1]
+  labels[is.na(labels)] <- "None"
+  
+  # Identify cell types
+  spatial_cells <- colnames(obj)[obj[[method_col]][,1] == spatial_value]
+  ref_cells <- colnames(obj)[obj[[method_col]][,1] == ref_value]
+  labeled_cells <- rownames(obj@meta.data)[labels != "None"]
+  unlabeled_cells <- rownames(obj@meta.data)[labels == "None"]
+  
+  # Determine if class or subclass based on unique labels
+  unique_labels <- unique(labels[labels != "None"])
+  is_class_level <- all(unique_labels %in% c("glutamatergic", "gabaergic", "nonneuronal"))
+  
+  cat(sprintf("Spatial cells: %d\n", length(spatial_cells)))
+  cat(sprintf("Reference cells: %d\n", length(ref_cells)))
+  cat(sprintf("Labeled cells: %d\n", length(labeled_cells)))
+  cat(sprintf("Unlabeled cells: %d (query)\n", length(unlabeled_cells)))
+  cat(sprintf("Level: %s\n\n", ifelse(is_class_level, "CLASS", "SUBCLASS")))
+  
+  # Get embeddings
+  coords <- Embeddings(obj, reduction = reduction)
+  coords <- coords[, dims, drop = FALSE]
+  
+  # Determine reference pool
+  if (reference_pool == "all") {
+    reference_cells <- c(labeled_cells, unlabeled_cells)
+  } else {
+    reference_cells <- labeled_cells
+  }
+  
+  cat(sprintf("Reference pool size: %d cells\n", length(reference_cells)))
+  cat(sprintf("Query pool size: %d cells\n\n", length(unlabeled_cells)))
+  
+  # Set parameter space based on level and reference_pool
+  if (is_class_level) {
+    if (reference_pool == "labeled") {
+      k_values <- c(25, 50, 100, 200, 500)
+      test_fractions <- c(0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1)
+    } else {  # "all"
+      k_values <- c(50, 100, 200, 500)
+      test_fractions <- c(0.05, 0.10, 0.15, 0.20, 0.25, 0.30)
+    }
+  } else {  # subclass level
+    if (reference_pool == "labeled") {
+      k_values <- c(10, 25, 50, 100, 200)
+      test_fractions <- c(0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1)
+    } else {  # "all"
+      k_values <- c(50, 80, 100, 150, 200)
+      test_fractions <- c(0.05, 0.10, 0.15, 0.20, 0.25, 0.30)
+    }
+  }
+  
+  cat(sprintf("Testing K values: %s\n", paste(k_values, collapse=", ")))
+  cat(sprintf("Testing fractions: %s\n\n", paste(test_fractions, collapse=", ")))
+  
+  # Compute nearest neighbors for all K values
+  cat("Computing nearest neighbors...\n")
+  ref_coords <- coords[reference_cells, , drop = FALSE]
+  query_coords <- coords[unlabeled_cells, , drop = FALSE]
+  
+  nn_results <- list()
+  for (k in k_values) {
+    nn_results[[as.character(k)]] <- get.knnx(ref_coords, query_coords, k = k)
+  }
+  
+  # === CONSENSUS ANALYSIS ===
+  cat("\n--- Consensus Analysis ---\n")
+  
+  consensus_df <- data.frame()
+  
+  for (k in k_values) {
+    nn_idx <- nn_results[[as.character(k)]]$nn.index
+    
+    # For each query cell, get labels of K nearest neighbors
+    consensus <- sapply(1:nrow(nn_idx), function(i) {
+      neighbor_cells <- reference_cells[nn_idx[i, ]]
+      neighbor_labels <- labels[match(neighbor_cells, rownames(obj@meta.data))]
+      neighbor_labels <- neighbor_labels[neighbor_labels != "None"]  # Exclude "None"
+      
+      if (length(neighbor_labels) == 0) {
+        return(c(NA, 0))
+      }
+      
+      label_table <- table(neighbor_labels)
+      max_label <- names(which.max(label_table))
+      max_fraction <- max(label_table) / length(neighbor_labels)
+      
+      c(max_label, max_fraction)
+    })
+    
+    consensus_df <- rbind(consensus_df, data.frame(
+      k = k,
+      mean_max_fraction = mean(as.numeric(consensus[2,]), na.rm = TRUE),
+      median_max_fraction = median(as.numeric(consensus[2,]), na.rm = TRUE),
+      pct_above_50 = 100 * sum(as.numeric(consensus[2,]) > 0.5, na.rm = TRUE) / ncol(consensus),
+      pct_above_75 = 100 * sum(as.numeric(consensus[2,]) > 0.75, na.rm = TRUE) / ncol(consensus)
+    ))
+  }
+  
+  print(consensus_df)
+  
+  # === DETAILED ANALYSIS ===
+  optimal_k <- k_values[ceiling(length(k_values)/2)]  # Middle K value
+  cat(sprintf("\n--- Detailed Analysis (K=%d) ---\n", optimal_k))
+  
+  nn_idx <- nn_results[[as.character(optimal_k)]]$nn.index
+  nn_dist <- nn_results[[as.character(optimal_k)]]$nn.dist
+  
+  query_analysis <- data.frame(
+    cell_id = unlabeled_cells,
+    dominant_label = NA,
+    dominant_fraction = NA,
+    mean_nn_dist = NA,
+    stringsAsFactors = FALSE
+  )
+  
+  for (i in 1:length(unlabeled_cells)) {
+    neighbor_cells <- reference_cells[nn_idx[i, ]]
+    neighbor_labels <- labels[match(neighbor_cells, rownames(obj@meta.data))]
+    neighbor_labels <- neighbor_labels[neighbor_labels != "None"]
+    
+    if (length(neighbor_labels) > 0) {
+      label_table <- table(neighbor_labels)
+      query_analysis$dominant_label[i] <- names(which.max(label_table))
+      query_analysis$dominant_fraction[i] <- max(label_table) / length(neighbor_labels)
+    }
+    
+    query_analysis$mean_nn_dist[i] <- mean(nn_dist[i, ])
+  }
+  
+  cat("\nDominant label distribution:\n")
+  print(table(query_analysis$dominant_label, useNA = "ifany"))
+  
+  cat("\nConsensus strength:\n")
+  print(summary(query_analysis$dominant_fraction))
+  
+  cat("\nNN distance:\n")
+  print(summary(query_analysis$mean_nn_dist))
+  
+  # Check for bimodality in distance distribution
+  tryCatch({
+    library(diptest)
+    dip_test <- dip.test(query_analysis$mean_nn_dist)
+    cat(sprintf("\nHartigan's Dip Test for Bimodality: p = %.4f\n", dip_test$p.value))
+    if (dip_test$p.value < 0.05) {
+      cat("  -> Significant bimodality detected (p < 0.05)\n")
+    } else {
+      cat("  -> No significant bimodality (p >= 0.05)\n")
+    }
+  }, error = function(e) {
+    cat("\nNote: Install 'diptest' package for bimodality testing\n")
+  })
+  
+  # === VISUALIZATIONS ===
+  cat("\nGenerating plots...\n")
+  
+  # 1. NN Distance Distribution
+  p_dist <- ggplot(query_analysis, aes(x = mean_nn_dist)) +
+    geom_histogram(binwidth = 0.05, fill = "steelblue", color = "black") +
+    geom_density(aes(y = after_stat(count) * 0.05), color = "red", size = 1) +
+    labs(title = sprintf("NN Distance Distribution (K=%d, pool=%s)", optimal_k, reference_pool),
+         subtitle = "Distance to K nearest reference cells",
+         x = "Mean NN Distance",
+         y = "Number of Query Cells") +
+    theme_minimal()
+  
+  print(p_dist)
+  
+  # 2. Distance vs Consensus scatter
+  p_dist_cons <- ggplot(query_analysis, aes(x = mean_nn_dist, y = dominant_fraction)) +
+    geom_point(alpha = 0.3, size = 1, color = "steelblue") +
+    geom_smooth(method = "loess", color = "red", se = TRUE) +
+    labs(title = "Integration Quality vs Consensus",
+         subtitle = sprintf("K=%d, pool=%s", optimal_k, reference_pool),
+         x = "Mean NN Distance",
+         y = "Consensus Strength") +
+    theme_minimal()
+  
+  print(p_dist_cons)
+  
+  # 3. Distance by Dominant Label
+  p_dist_label <- ggplot(query_analysis[!is.na(query_analysis$dominant_label), ], 
+                         aes(x = dominant_label, y = mean_nn_dist, fill = dominant_label)) +
+    geom_violin(alpha = 0.7) +
+    geom_boxplot(width = 0.2, fill = "white", outlier.shape = NA) +
+    labs(title = "NN Distance by Dominant Label",
+         subtitle = sprintf("K=%d, pool=%s", optimal_k, reference_pool),
+         x = "Dominant Label",
+         y = "Mean NN Distance") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  print(p_dist_label)
+  
+  # 4. Consensus histogram
+  threshold_lines <- test_fractions[c(1, ceiling(length(test_fractions)/2), length(test_fractions))]
+  
+  p1 <- ggplot(query_analysis, aes(x = dominant_fraction)) +
+    geom_histogram(binwidth = 0.05, fill = "steelblue", color = "black") +
+    geom_vline(xintercept = threshold_lines[1], color = "red", linetype = "dashed", size = 1) +
+    geom_vline(xintercept = threshold_lines[2], color = "orange", linetype = "dashed", size = 1) +
+    geom_vline(xintercept = threshold_lines[3], color = "green", linetype = "dashed", size = 1) +
+    labs(title = sprintf("Consensus Strength (K=%d, pool=%s)", optimal_k, reference_pool),
+         subtitle = "Fraction of neighbors agreeing on dominant label",
+         x = "Dominant Fraction",
+         y = "Number of Query Cells") +
+    theme_minimal() +
+    annotate("text", x = threshold_lines[1], y = Inf, 
+             label = sprintf("%.2f", threshold_lines[1]), 
+             hjust = -0.1, vjust = 1.5, color = "red", size = 3) +
+    annotate("text", x = threshold_lines[2], y = Inf, 
+             label = sprintf("%.2f", threshold_lines[2]),
+             hjust = -0.1, vjust = 3, color = "orange", size = 3) +
+    annotate("text", x = threshold_lines[3], y = Inf, 
+             label = sprintf("%.2f", threshold_lines[3]),
+             hjust = -0.1, vjust = 4.5, color = "green", size = 3)
+  
+  print(p1)
+  
+  # 5. Parameter sweep
+  cat("\n--- Parameter Sweep ---\n")
+  
+  param_results <- data.frame()
+  for (k in k_values) {
+    nn_idx <- nn_results[[as.character(k)]]$nn.index
+    
+    for (frac in test_fractions) {
+      n_pass <- sum(sapply(1:nrow(nn_idx), function(i) {
+        neighbor_cells <- reference_cells[nn_idx[i, ]]
+        neighbor_labels <- labels[match(neighbor_cells, rownames(obj@meta.data))]
+        neighbor_labels <- neighbor_labels[neighbor_labels != "None"]
+        
+        if (length(neighbor_labels) == 0) return(FALSE)
+        
+        label_table <- table(neighbor_labels)
+        max(label_table) / length(neighbor_labels) >= frac
+      }))
+      
+      param_results <- rbind(param_results, data.frame(
+        k = k,
+        fraction = frac,
+        n_labeled = n_pass,
+        pct_labeled = 100 * n_pass / length(unlabeled_cells)
+      ))
+    }
+  }
+  
+  print(param_results)
+  
+  p2 <- ggplot(param_results, aes(x = fraction, y = pct_labeled, color = factor(k))) +
+    geom_line(size = 1) +
+    geom_point(size = 2) +
+    labs(title = sprintf("Parameter Optimization (pool=%s)", reference_pool),
+         subtitle = "Expected % of query cells labeled",
+         x = "Fraction Threshold",
+         y = "% Cells Labeled",
+         color = "K Neighbors") +
+    scale_color_brewer(palette = "Set1") +
+    theme_minimal()
+  
+  print(p2)
+  
+  # === DISTANCE THRESHOLD ANALYSIS ===
+  cat("\n--- Distance-Based Filtering Analysis ---\n")
+  
+  # Test different distance thresholds
+  distance_thresholds <- quantile(query_analysis$mean_nn_dist, 
+                                  probs = c(0.25, 0.50, 0.75, 0.90, 0.95), 
+                                  na.rm = TRUE)
+  
+  cat("\nDistance quantiles:\n")
+  print(distance_thresholds)
+  
+  dist_filter_results <- data.frame()
+  for (dist_thresh in distance_thresholds) {
+    filtered_cells <- query_analysis$mean_nn_dist <= dist_thresh
+    n_kept <- sum(filtered_cells, na.rm = TRUE)
+    pct_kept <- 100 * n_kept / length(unlabeled_cells)
+    mean_consensus_kept <- mean(query_analysis$dominant_fraction[filtered_cells], na.rm = TRUE)
+    
+    dist_filter_results <- rbind(dist_filter_results, data.frame(
+      distance_threshold = dist_thresh,
+      n_cells_kept = n_kept,
+      pct_cells_kept = pct_kept,
+      mean_consensus_kept = mean_consensus_kept
+    ))
+  }
+  
+  cat("\nIf filtering by distance threshold:\n")
+  print(dist_filter_results)
+  
+  # === RECOMMENDATIONS ===
+  cat("\n========================================\n")
+  cat("RECOMMENDATIONS\n")
+  cat("========================================\n\n")
+  
+  # Find parameters for 60-80% labeling
+  good_params <- param_results[param_results$pct_labeled >= 60 & 
+                                 param_results$pct_labeled <= 80, ]
+  
+  if (nrow(good_params) > 0) {
+    cat("For 60-80% labeling success:\n")
+    print(good_params)
+    
+    # Recommend most conservative (highest fraction)
+    best <- good_params[which.max(good_params$fraction), ]
+    cat(sprintf("\nRECOMMENDED: fraction=%.2f, n.neighbors=%d (%.1f%% labeled)\n",
+                best$fraction, best$k, best$pct_labeled))
+    cat(sprintf("            reference_pool='%s'\n\n", reference_pool))
+  } else {
+    cat("No parameters give 60-80% labeling.\n\n")
+    
+    best <- param_results[which.max(param_results$pct_labeled), ]
+    cat(sprintf("Best available: fraction=%.2f, n.neighbors=%d (%.1f%% labeled)\n",
+                best$fraction, best$k, best$pct_labeled))
+    cat(sprintf("               reference_pool='%s'\n\n", reference_pool))
+  }
+  
+  # Distance-based recommendation
+  median_dist <- median(query_analysis$mean_nn_dist, na.rm = TRUE)
+  q75_dist <- quantile(query_analysis$mean_nn_dist, 0.75, na.rm = TRUE)
+  
+  cat("\nDistance-based filtering options:\n")
+  cat(sprintf("  Median distance: %.3f (keeps 50%% of cells)\n", median_dist))
+  cat(sprintf("  75th percentile: %.3f (keeps 75%% of cells)\n", q75_dist))
+  cat("\nConsider filtering out cells with distance > threshold before labeling\n")
+  cat("to focus on well-integrated cells only.\n\n")
+  
+  # Save to global environment
+  result_name <- sprintf("nn_diagnostics_%s_%s", ident, reference_pool)
+  assign(result_name, list(
+    query_analysis = query_analysis,
+    param_results = param_results,
+    consensus_df = consensus_df,
+    dist_filter_results = dist_filter_results,
+    recommended = if(nrow(good_params) > 0) best else param_results[which.max(param_results$pct_labeled), ]
+  ), envir = .GlobalEnv)
+  
+  cat(sprintf("Results saved to: %s\n", result_name))
+  cat(sprintf("Access recommended params: %s$recommended\n", result_name))
+  cat(sprintf("Access distance analysis: %s$dist_filter_results\n\n", result_name))
+  
+  invisible(list(
+    query_analysis = query_analysis,
+    param_results = param_results,
+    consensus_df = consensus_df,
+    dist_filter_results = dist_filter_results
+  ))
 }
 
 
