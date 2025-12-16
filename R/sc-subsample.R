@@ -85,7 +85,7 @@ SubsampleObject <- function(seurat_obj, meta_column, cells_per_category, seed = 
   # Subsample each category to the target size
   sampled_cells <- unlist(lapply(categories, function(cat) {
     cat_cells <- rownames(metadata[metadata[[meta_column]] == cat, ])
-    n_sample <- min(n_cells, length(cat_cells))
+    n_sample <- min(cells_per_category, length(cat_cells))
     sample(cat_cells, n_sample, replace = FALSE)
   }))
   
