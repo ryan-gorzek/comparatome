@@ -1,19 +1,103 @@
 #' PCAProject
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the projection family.
-#' @param seurat_query (auto) parameter
-#' @param seurat_reference (auto) parameter
-#' @param reduction (auto) parameter
-#' @return (auto) value; see function body.
+#' Project query cells into the PCA space defined by a reference Seurat object.
+#' Uses the reference PC loadings to compute PC coordinates for query cells,
+#' enabling direct comparison of cells in a shared low-dimensional space without
+#' batch correction or integration.
+#'
+#' @param seurat_query Seurat object containing query cells to project. Must have
+#'   scaled data available (run \code{ScaleData} or \code{NormalizeAndPCA} first).
+#' @param seurat_reference Seurat object defining the reference PCA space. Must
+#'   have PCA computed with \code{RunPCA} or \code{NormalizeAndPCA}.
+#' @param reduction Character string specifying the reduction to use from the
+#'   reference object (default: "pca"). The corresponding loadings are used for
+#'   projection.
+#'
+#' @return Query Seurat object with the specified reduction replaced by projected
+#'   coordinates. The projection uses the reference PC loadings applied to query
+#'   scaled expression values.
+#'
+#' @details
+#' **Projection method:**
+#' \enumerate{
+#'   \item Extracts feature loadings from reference reduction
+#'   \item Identifies genes present in both reference loadings and query scaled data
+#'   \item Computes projection: \code{query_PCs = t(query_scaled_data) \%*\% reference_loadings}
+#'   \item Stores result as a DimReduc object in the query
+#' }
+#'
+#' **Requirements:**
+#' \itemize{
+#'   \item Both objects must share a substantial set of genes
+#'   \item Query object must have scaled data (\code{scale.data} slot populated)
+#'   \item Reference object must have the specified reduction with loadings
+#'   \item For cross-species work, use shared orthologous genes in both objects
+#' }
+#'
+#' **Use cases:**
+#' \itemize{
+#'   \item \strong{Cross-species comparison}: Project one species into another's
+#'     PC space to visualize evolutionary conservation of transcriptomic structure
+#'   \item \strong{Reference mapping}: Project new samples onto a well-characterized
+#'     reference atlas
+#'   \item \strong{Archetype analysis}: Compare geometric arrangements (e.g.,
+#'     tetrahedra from ParTI) across species in a common coordinate system
+#'   \item \strong{Batch assessment}: Project held-out samples to evaluate whether
+#'     they occupy expected regions of PC space
+#' }
+#'
+#' **Cross-species workflow:**
+#' \preformatted{
+#'   # 1. Identify shared genes
+#'   shared.genes <- intersect(rownames(obj.mouse), rownames(obj.opossum))
+#'
+#'   # 2. Normalize both with shared genes as variable features
+#'   obj.mouse <- NormalizeAndPCA(obj.mouse, features = shared.genes)
+#'   obj.opossum <- NormalizeAndPCA(obj.opossum, features = shared.genes)
+#'
+#'   # 3. Project opossum into mouse PC space
+#'   obj.opossum.proj <- PCAProject(obj.opossum, obj.mouse)
+#'
+#'   # 4. Visualize both species in mouse reference frame
+#'   DimPlot(obj.mouse, reduction = "pca", dims = c(1, 2))
+#'   DimPlot(obj.opossum.proj, reduction = "pca", dims = c(1, 2))
+#' }
+#'
+#' **Important considerations:**
+#' \itemize{
+#'   \item Projection is asymmetric: projecting A???B differs from B???A
+#'   \item The reference defines the coordinate system; query cells are placed
+#'     within it but don't influence the PC directions
+#'   \item Large differences in gene expression distributions between query and
+#'     reference may lead to projection artifacts
+#' }
+#'
 #' @export
 #' @family projection
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Cross-species projection
+#'   shared.genes <- intersect(rownames(obj.mouse), rownames(obj.opossum))
+#'   obj.mouse <- NormalizeAndPCA(obj.mouse, features = shared.genes)
+#'   obj.opossum <- NormalizeAndPCA(obj.opossum, features = shared.genes)
+#'
+#'   # Project opossum cells into mouse PC space
+#'   obj.opossum.in.mouse <- PCAProject(obj.opossum, obj.mouse)
+#'
+#'   # Compare native vs projected coordinates
+#'   DimPlot(obj.opossum, reduction = "pca", group.by = "subclass")
+#'   DimPlot(obj.opossum.in.mouse, reduction = "pca", group.by = "subclass")
+#'
+#'   # Bidirectional projection for symmetric comparison
+#'   obj.mouse.in.opossum <- PCAProject(obj.mouse, obj.opossum)
+#'
+#'   # Export for external analysis (e.g., MATLAB ParTI)
+#'   pc_data <- Embeddings(obj.opossum.in.mouse, "pca")[, 1:10]
+#'   write.csv(pc_data, "opossum_in_mouse_pcs.csv")
 #' }
 PCAProject <- function(seurat_query, seurat_reference, reduction = "pca") {
-  # Ensure the reference object has the specified reduction (e.g., PCA)
+  # Ensure the reference object has the specified reduction
   if (!reduction %in% names(seurat_reference@reductions)) {
     stop(paste0("Reduction '", reduction, "' not found in the reference object."))
   }
@@ -38,7 +122,11 @@ PCAProject <- function(seurat_query, seurat_reference, reduction = "pca") {
   query_pcs <- t(query_scaled_data) %*% reference_loadings
   
   # Add the projected PCs back to the query object
-  seurat_query[[reduction]] <- CreateDimReducObject(embeddings = as.matrix(query_pcs), key = paste0(reduction, "_"), assay = DefaultAssay(seurat_query))
+  seurat_query[[reduction]] <- CreateDimReducObject(
+    embeddings = as.matrix(query_pcs),
+    key = paste0(reduction, "_"),
+    assay = DefaultAssay(seurat_query)
+  )
   
   return(seurat_query)
 }

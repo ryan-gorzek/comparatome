@@ -1,18 +1,92 @@
 #' PlotPCLoadingsCorrelation
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the components family.
-#' @param seurat_objects (auto) parameter
-#' @param object_names (auto) parameter
-#' @param num_pcs (auto) parameter
-#' @return (auto) value; see function body.
+#' Generate a heatmap showing correlations between PC loadings from two Seurat
+#' objects. Useful for comparing the gene expression programs captured by principal
+#' components across species, conditions, or datasets.
+#'
+#' @param seurat_objects List of exactly 2 Seurat objects to compare. Each must
+#'   have PCA computed.
+#' @param object_names Character vector of length 2 specifying names for each
+#'   object (used in plot labels).
+#' @param num_pcs Integer specifying the number of PCs to include in the correlation
+#'   matrix (default: 10).
+#'
+#' @return ggplot2 object displaying a heatmap where:
+#' \itemize{
+#'   \item Rows: PCs from the first object
+#'   \item Columns: PCs from the second object
+#'   \item Fill color: Pearson correlation coefficient (-1 to 1)
+#'   \item Text: Correlation values displayed in each tile
+#' }
+#'
+#' @details
+#' **Correlation calculation:**
+#' \enumerate{
+#'   \item Extracts PC loadings (gene weights) from each object
+#'   \item Identifies genes present in both loading matrices
+#'   \item Computes Pearson correlation between all pairs of PCs
+#'   \item Visualizes as a heatmap with diverging color scale
+#' }
+#'
+#' **Interpreting results:**
+#' \itemize{
+#'   \item \strong{High diagonal correlations} (|r| > 0.7): PCs capture similar
+#'     gene expression programs in both datasets
+#'   \item \strong{Off-diagonal correlations}: Different PC orderings between
+#'     datasets; similar biology captured by different component numbers
+#'   \item \strong{Sign flips} (r ??? -1): Same program captured but with inverted
+#'     sign (arbitrary in PCA)
+#'   \item \strong{Low correlations throughout}: Datasets have fundamentally
+#'     different variance structure
+#' }
+#'
+#' **Use cases:**
+#' \itemize{
+#'   \item \strong{Cross-species comparison}: Assess conservation of transcriptomic
+#'     structure between species
+#'   \item \strong{Batch effect assessment}: Compare PCs before/after batch correction
+#'   \item \strong{Reproducibility}: Compare PCs from replicate experiments
+#'   \item \strong{Gene set validation}: Confirm that shared variable features
+#'     produce concordant PCs
+#' }
+#'
 #' @export
 #' @family components
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Compare PCs between mouse and opossum IT neurons
+#'   obj.mouse <- NormalizeAndPCA(obj.mouse)
+#'   obj.opossum <- NormalizeAndPCA(obj.opossum)
+#'
+#'   p <- PlotPCLoadingsCorrelation(
+#'     seurat_objects = list(obj.mouse, obj.opossum),
+#'     object_names = c("Mouse", "Opossum"),
+#'     num_pcs = 10
+#'   )
+#'   print(p)
+#'
+#'   # Compare with shared variable features
+#'   shared.vfs <- intersect(
+#'     VariableFeatures(obj.mouse),
+#'     VariableFeatures(obj.opossum)
+#'   )
+#'   obj.mouse.svf <- NormalizeAndPCA(obj.mouse, features = shared.vfs)
+#'   obj.opossum.svf <- NormalizeAndPCA(obj.opossum, features = shared.vfs)
+#'
+#'   p.svf <- PlotPCLoadingsCorrelation(
+#'     seurat_objects = list(obj.mouse.svf, obj.opossum.svf),
+#'     object_names = c("Mouse (shared VF)", "Opossum (shared VF)"),
+#'     num_pcs = 10
+#'   )
+#'   print(p.svf)
+#'
+#'   # Expect higher correlations with shared features
 #' }
 PlotPCLoadingsCorrelation <- function(seurat_objects, object_names, num_pcs = 10) {
+  library(ggplot2)
+  library(reshape2)
+  
   # Extract PCA loadings for the specified number of PCs
   loadings_list <- lapply(seurat_objects, function(obj) {
     Loadings(obj, reduction = "pca")[, 1:num_pcs]
@@ -20,6 +94,10 @@ PlotPCLoadingsCorrelation <- function(seurat_objects, object_names, num_pcs = 10
   
   # Find the intersection of genes between the two Seurat objects
   common_genes <- intersect(rownames(loadings_list[[1]]), rownames(loadings_list[[2]]))
+  
+  if (length(common_genes) < 10) {
+    warning(paste("Only", length(common_genes), "common genes found. Results may be unreliable."))
+  }
   
   # Subset the loadings matrices to the common genes
   loadings_list <- lapply(loadings_list, function(loadings) {
@@ -37,11 +115,12 @@ PlotPCLoadingsCorrelation <- function(seurat_objects, object_names, num_pcs = 10
   ggplot(cor_df, aes(x = PC1, y = PC2, fill = Correlation)) +
     geom_tile() +
     geom_text(aes(label = sprintf("%.2f", Correlation)), color = "black", size = 3) +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-    labs(title = paste("PC Loadings Correlation of", object_names[1], "with", object_names[2]),
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0,
+                         limits = c(-1, 1)) +
+    labs(title = paste("PC Loadings Correlation:", object_names[1], "vs", object_names[2]),
          x = paste0(object_names[1], " PC"),
          y = paste0(object_names[2], " PC")) +
-    scale_y_discrete(limits = rev(levels(cor_df$PC1))) +
+    scale_y_discrete(limits = rev(levels(cor_df$PC2))) +
     coord_fixed() +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))

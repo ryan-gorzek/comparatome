@@ -125,33 +125,98 @@ MapGenes <- function(obj, mapping_path, use_ids = FALSE) {
 
 #' NormalizeAndPCA
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the preprocess family.
-#' @param obj (auto) parameter
-#' @param nfeatures (auto) parameter
-#' @param npcs (auto) parameter
-#' @param features (auto) parameter
-#' @return (auto) value; see function body.
+#' Perform log-normalization, variable feature selection, scaling, and PCA on a
+#' Seurat object using the standard Seurat workflow. Provides a convenient wrapper
+#' for the common preprocessing steps required before dimensionality reduction
+#' and clustering.
+#'
+#' @param obj Seurat object with raw counts in the RNA assay.
+#' @param nfeatures Integer specifying the number of variable features to select
+#'   when using automatic feature selection (default: 3000). Ignored if `features`
+#'   is provided.
+#' @param npcs Integer specifying the number of principal components to compute
+#'   (default: 30).
+#' @param features Character vector of gene names to use as variable features.
+#'   If NA (default), variable features are selected automatically using the VST
+#'   method. Use this parameter to specify shared ortholog genes for cross-species
+#'   analysis or custom gene sets.
+#'
+#' @return Seurat object with:
+#' \itemize{
+#'   \item Normalized data in \code{RNA@data} slot
+#'   \item Variable features set (accessible via \code{VariableFeatures()})
+#'   \item Scaled data in \code{RNA@scale.data} slot
+#'   \item PCA reduction with specified number of components
+#' }
+#'
+#' @details
+#' **Workflow:**
+#' \enumerate{
+#'   \item Sets default assay to "RNA"
+#'   \item Applies log-normalization with scale factor 10,000
+#'   \item Selects variable features via VST (or uses provided features)
+#'   \item Scales all genes (centers and standardizes expression)
+#'   \item Runs PCA on variable features
+#' }
+#'
+#' **When to use NormalizeAndPCA vs SCTransform:**
+#' \itemize{
+#'   \item \strong{NormalizeAndPCA}: Standard workflow, lower memory, compatible
+#'     with older Seurat pipelines. Good for exploratory analysis and when
+#'     consistency with published methods is important.
+#'   \item \strong{SCTransform}: Variance-stabilizing transformation, better for
+#'     integration workflows and when technical variation is a concern.
+#' }
+#'
+#' **Cross-species usage:**
+#' For cross-species comparisons, provide shared orthologous genes via the
+#' `features` parameter to ensure both species are analyzed in the same gene space:
+#' \preformatted{
+#'   shared.genes <- intersect(rownames(obj.mouse), rownames(obj.opossum))
+#'   obj.mouse <- NormalizeAndPCA(obj.mouse, features = shared.genes)
+#'   obj.opossum <- NormalizeAndPCA(obj.opossum, features = shared.genes)
+#' }
+#'
 #' @export
 #' @family preprocess
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Standard preprocessing with default parameters
+#'   obj <- NormalizeAndPCA(obj)
+#'   ElbowPlot(obj)  # Visualize variance explained
+#'
+#'   # Custom number of variable features and PCs
+#'   obj <- NormalizeAndPCA(obj, nfeatures = 5000, npcs = 50)
+#'
+#'   # Use specific gene set (e.g., shared orthologs)
+#'   shared.genes <- intersect(
+#'     VariableFeatures(obj.species1),
+#'     VariableFeatures(obj.species2)
+#'   )
+#'   obj <- NormalizeAndPCA(obj, features = shared.genes)
+#'
+#'   # Pipeline for cross-species PCA projection
+#'   obj.mouse <- NormalizeAndPCA(obj.mouse, features = shared.orthologs)
+#'   obj.opossum <- NormalizeAndPCA(obj.opossum, features = shared.orthologs)
+#'   obj.opossum.proj <- PCAProject(obj.opossum, obj.mouse)
 #' }
 NormalizeAndPCA <- function(obj, nfeatures = 3000, npcs = 30, features = NA) {
   
   DefaultAssay(obj) <- "RNA"
   obj <- NormalizeData(obj, normalization.method = "LogNormalize", scale.factor = 10000)
+  
   if (all(is.na(features))) {
     obj <- FindVariableFeatures(obj, selection.method = "vst", nfeatures = nfeatures)
   } else {
     VariableFeatures(obj) <- features
   }
+  
   all.genes <- rownames(obj)
   obj <- ScaleData(obj, features = all.genes)
   obj <- RunPCA(obj, features = VariableFeatures(object = obj), npcs = npcs)
-  return(obj)
   
+  return(obj)
 }
 
 

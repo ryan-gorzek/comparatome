@@ -1,46 +1,96 @@
 #' SubsampleObject
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the subsampling family.
-#' @param seurat_obj (auto) parameter
-#' @param metadata_col (auto) parameter
-#' @param cells_per_category (auto) parameter
-#' @return (auto) value; see function body.
+#' Perform stratified subsampling of a Seurat object to a specified number of
+#' cells per category. Samples cells from each unique value in a metadata column,
+#' enabling balanced datasets for cross-species comparison, visualization, or
+#' downstream analysis.
+#'
+#' @param seurat_obj Seurat object to subsample.
+#' @param meta_column Character string specifying the metadata column containing
+#'   category labels to stratify by (e.g., "subclass", "cluster", "celltype").
+#' @param n_cells Integer specifying the number of cells to sample per category.
+#'   If a category has fewer cells than n_cells, all available cells are taken.
+#' @param seed Integer seed for random number generation, ensuring reproducibility
+#'   (default: 123).
+#'
+#' @return Seurat object containing only the subsampled cells. All assays,
+#'   reductions, and metadata are preserved for the retained cells.
+#'
+#' @details
+#' **Subsampling behavior:**
+#' \itemize{
+#'   \item Iterates through each unique value in meta_column
+#'   \item Samples exactly n_cells from each category (without replacement)
+#'   \item If a category has fewer than n_cells, takes all available cells
+#'   \item Results in approximately balanced categories (exact if all >= n_cells)
+#' }
+#'
+#' **Use cases:**
+#' \itemize{
+#'   \item \strong{Balanced training sets}: Create datasets with equal class
+#'     representation for machine learning or differential expression
+#'   \item \strong{Visualization}: Subsample for cleaner UMAP/PCA plots without
+#'     overrepresentation of abundant cell types
+#'   \item \strong{Cross-species comparison}: Match cell counts between species
+#'     before computing shared variable features or PCA projection
+#'   \item \strong{Memory management}: Reduce object size for computationally
+#'     intensive operations while maintaining class structure
+#' }
+#'
+#' **Relationship to other functions:**
+#' \itemize{
+#'   \item \code{\link{SubsampleClasses}}: Subsamples to minimum class size
+#'     (no n_cells parameter)
+#'   \item \code{\link{SubsampleObjectMultipleIterations}}: For bootstrap/jackknife
+#'     analyses requiring multiple independent subsamples
+#'   \item \code{\link{SplitObjectHalf}}: For train/test splits (50-50)
+#' }
+#'
 #' @export
 #' @family subsampling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Subsample to 200 cells per subclass
+#'   obj.sub <- SubsampleObject(obj, "subclass", n_cells = 200)
+#'   table(obj.sub$subclass)  # Each class has <= 200 cells
+#'
+#'   # Cross-species balanced comparison
+#'   min.cells <- min(
+#'     min(table(obj.mouse$subclass)),
+#'     min(table(obj.opossum$subclass))
+#'   )
+#'   obj.mouse.bal <- SubsampleObject(obj.mouse, "subclass", min.cells)
+#'   obj.opossum.bal <- SubsampleObject(obj.opossum, "subclass", min.cells)
+#'
+#'   # Reproducible subsampling with custom seed
+#'   obj.sub1 <- SubsampleObject(obj, "cluster", 100, seed = 42)
+#'   obj.sub2 <- SubsampleObject(obj, "cluster", 100, seed = 42)
+#'   identical(colnames(obj.sub1), colnames(obj.sub2))  # TRUE
+#'
+#'   # Pipeline: subsample, normalize, project
+#'   obj.mouse.ss <- SubsampleObject(obj.mouse, "subclass", 500)
+#'   obj.mouse.ss <- NormalizeAndPCA(obj.mouse.ss, features = shared.genes)
+#'   obj.opossum.proj <- PCAProject(obj.opossum, obj.mouse.ss)
 #' }
-SubsampleObject <- function(seurat_obj, metadata_col, cells_per_category) {
-  # Extract metadata
+SubsampleObject <- function(seurat_obj, meta_column, cells_per_category, seed = 123) {
+  set.seed(seed)
+  
+  # Get the metadata
   metadata <- seurat_obj@meta.data
   
-  # Get unique values in the specified metadata column
-  unique_values <- unique(metadata[[metadata_col]])
+  # Get unique categories
+  categories <- unique(metadata[[meta_column]])
   
-  # Initialize a list to store subsampled cell names
-  subsampled_cells <- list()
+  # Subsample each category to the target size
+  sampled_cells <- unlist(lapply(categories, function(cat) {
+    cat_cells <- rownames(metadata[metadata[[meta_column]] == cat, ])
+    n_sample <- min(n_cells, length(cat_cells))
+    sample(cat_cells, n_sample, replace = FALSE)
+  }))
   
-  # Loop through each unique value in the metadata column
-  for (value in unique_values) {
-    # Get cells that belong to the current metadata category
-    cells_in_category <- rownames(metadata[metadata[[metadata_col]] == value, ])
-    
-    # Determine the number of cells to sample
-    n_cells_to_sample <- min(length(cells_in_category), cells_per_category)
-    
-    # Sample cells
-    sampled_cells <- sample(cells_in_category, n_cells_to_sample)
-    
-    # Add sampled cells to the list
-    subsampled_cells <- c(subsampled_cells, sampled_cells)
-  }
-  
-  # Subset the Seurat object to include only the subsampled cells
-  subsampled_seurat_obj <- subset(seurat_obj, cells = as.character(subsampled_cells))
-  
-  return(subsampled_seurat_obj)
+  # Subset the Seurat object to the sampled cells
+  subset(seurat_obj, cells = sampled_cells)
 }
 
 
@@ -106,7 +156,8 @@ SubsampleObject <- function(seurat_obj, metadata_col, cells_per_category) {
 #'    FindMarkers(obj_subsample, ident.1 = "cluster1", ident.2 = "cluster2")
 #'  })
 #' }
-SubsampleObjectMultipleIterations <- function(seurat_obj, metadata_col, cells_per_category, iterations) {
+SubsampleObjectMultipleIterations <- function(seurat_obj, metadata_col, cells_per_category, iterations, seed = 123) {
+  set.seed(seed)
   
   # Extract metadata for cell lookup
   metadata <- seurat_obj@meta.data
