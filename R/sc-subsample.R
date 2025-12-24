@@ -367,17 +367,61 @@ SplitObjectHalf <- function(seurat_object, seed = 123) {
 
 #' MatchDistribution
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the subsampling family.
-#' @param query_obj (auto) parameter
-#' @param reference_obj (auto) parameter
-#' @param n_samples (auto) parameter
-#' @return (auto) value; see function body.
+#' Subsample cells from a query dataset to match the nFeature_RNA and nCount_RNA
+#' distribution of a reference dataset. Uses 2D kernel density estimation to
+#' sample from the reference distribution, then finds nearest neighbors in the
+#' query to match this distribution.
+#'
+#' @param query_obj Seurat object to subsample (typically the larger/higher-quality
+#'   dataset). Must have nFeature_RNA and nCount_RNA in metadata.
+#' @param reference_obj Seurat object defining the target distribution to match.
+#'   Must have nFeature_RNA and nCount_RNA in metadata.
+#' @param n_samples Integer specifying the number of cells to sample. If NULL
+#'   (default), samples the same number of cells as in reference_obj.
+#'
+#' @return Seurat object containing a subset of query_obj cells that match the
+#'   nFeature_RNA/nCount_RNA distribution of reference_obj.
+#'
+#' @details
+#' **Algorithm:**
+#' \enumerate{
+#'   \item Estimate 2D kernel density of reference (nFeature_RNA x nCount_RNA)
+#'   \item Sample target points from reference distribution using multivariate normal
+#'   \item For each target point, find nearest cell in query (Euclidean distance)
+#'   \item Sample without replacement to avoid duplicates
+#' }
+#'
+#' **Use cases:**
+#' \itemize{
+#'   \item \strong{Cross-species QC matching}: Match opossum QC distribution when
+#'     mouse has systematically higher quality
+#'   \item \strong{Sequencing depth control}: Control for differences in UMI
+#'     counts between batches or conditions
+#'   \item \strong{Fair comparison}: Ensure transcriptomic comparisons aren't
+#'     confounded by quality differences
+#' }
+#'
+#' **Comparison to DownsampleToMatchUMIDistribution:**
+#' \itemize{
+#'   \item \code{MatchDistribution}: Subsamples cells to match distribution (fewer cells)
+#'   \item \code{DownsampleToMatchUMIDistribution}: Downsamples UMIs within cells
+#'     (same cells, fewer UMIs per cell)
+#' }
+#'
 #' @export
 #' @family subsampling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Match mouse QC distribution to opossum
+#'   obj.mouse.matched <- MatchDistribution(obj.mouse, obj.opossum)
+#'   
+#'   # Verify distributions match
+#'   VlnPlot(obj.opossum, "nCount_RNA")
+#'   VlnPlot(obj.mouse.matched, "nCount_RNA")
+#'   
+#'   # Sample specific number of cells
+#'   obj.mouse.1000 <- MatchDistribution(obj.mouse, obj.opossum, n_samples = 1000)
 #' }
 MatchDistribution <- function(query_obj, reference_obj, n_samples = NULL) {
   # Extract metadata
@@ -433,18 +477,87 @@ MatchDistribution <- function(query_obj, reference_obj, n_samples = NULL) {
 
 #' ShuffleExpression
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the subsampling family.
-#' @param seurat_obj (auto) parameter
-#' @param metadata_column (auto) parameter
-#' @param assay (auto) parameter
-#' @param ignore_group (auto) parameter
-#' @return (auto) value; see function body.
+#' Shuffle gene expression values across cells within groups to destroy continuous
+#' transcriptomic gradients while preserving overall group identity. This function
+#' is used as a control analysis to test whether observed structure (e.g., archetype
+#' geometry) reflects genuine gradients or could arise from noise (Xie et al., 2025).
+#'
+#' @param seurat_obj Seurat object containing expression data to shuffle.
+#' @param metadata_column Character string specifying the metadata column containing
+#'   group labels. Expression is shuffled independently within each group.
+#' @param assay Character string specifying which assay to shuffle (default: "RNA").
+#'   The counts slot is shuffled.
+#' @param ignore_group Logical. If TRUE, shuffles across all cells regardless of
+#'   group membership (default: FALSE). Use TRUE to completely randomize expression.
+#'
+#' @return Seurat object with shuffled expression in the counts slot. The original
+#'   object is not modified; a copy is returned. Metadata and other slots are preserved.
+#'
+#' @details
+#' **Shuffling method:**
+#' \enumerate{
+#'   \item For each gene, expression values are permuted across cells within each group
+#'   \item Each gene is shuffled independently (row-wise permutation)
+#'   \item If \code{ignore_group = FALSE}, shuffling respects group boundaries
+#'   \item If \code{ignore_group = TRUE}, all cells are shuffled together
+#' }
+#'
+#' **What is preserved:**
+#' \itemize{
+#'   \item Per-group mean expression for each gene (when \code{ignore_group = FALSE})
+#'   \item Total UMI counts per cell (column sums)
+#'   \item Gene detection rates per group
+#'   \item Overall expression distributions
+#' }
+#'
+#' **What is destroyed:**
+#' \itemize{
+#'   \item Cell-to-cell covariance structure (gene correlations)
+#'   \item Continuous gradients within groups
+#'   \item Subtype structure below the specified grouping level
+#'   \item PCA structure reflecting co-regulated gene modules
+#' }
+#'
+#' **Use cases:**
+#' \itemize{
+#'   \item \strong{Archetype controls}: Test if tetrahedral/triangular geometry requires
+#'     continuous gradients or would emerge from discrete clusters alone
+#'   \item \strong{Gradient validation}: Compare PCA variance explained before/after shuffling
+#'   \item \strong{Null model construction}: Generate null distributions for correlation-based
+#'     analyses
+#' }
+#'
+#' **Typical workflow:**
+#' \preformatted{
+#'   # Create shuffled control
+#'   obj.shuffle <- ShuffleExpression(obj, "subclass")
+#'   
+#'   # Re-normalize (required after modifying counts)
+#'   obj.shuffle <- NormalizeAndPCA(obj.shuffle)
+#'   
+#'   # Compare PCA structure
+#'   DimPlot(obj, reduction = "pca")
+#'   DimPlot(obj.shuffle, reduction = "pca")  # Should show collapsed structure
+#' }
+#'
 #' @export
 #' @family subsampling
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Shuffle within subclass to destroy gradients
+#'   obj.IT <- subset(obj, subclass %in% c("L2/3", "L4", "L5IT", "L6IT"))
+#'   obj.IT.shuffle <- ShuffleExpression(obj.IT, "subclass")
+#'   
+#'   # Must re-normalize after shuffling
+#'   obj.IT.shuffle <- NormalizeAndPCA(obj.IT.shuffle)
+#'   
+#'   # Compare variance structure
+#'   ElbowPlot(obj.IT)          # Higher variance in early PCs
+#'   ElbowPlot(obj.IT.shuffle)  # Flatter variance distribution
+#'   
+#'   # Shuffle across all cells (complete randomization)
+#'   obj.random <- ShuffleExpression(obj, "subclass", ignore_group = TRUE)
 #' }
 ShuffleExpression <- function(seurat_obj, metadata_column, assay = "RNA", ignore_group = FALSE) {
   # Check if the metadata_column exists in the Seurat object metadata

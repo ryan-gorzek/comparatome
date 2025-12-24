@@ -134,18 +134,75 @@ PCAProject <- function(seurat_query, seurat_reference, reduction = "pca") {
 
 #' MinDistance
 #'
-#' Auto-generated roxygen skeleton for comparatome.
-#' Part of the projection family.
-#' @param seurat_obj (auto) parameter
-#' @param reference_df (auto) parameter
-#' @param pc1_colname (auto) parameter
-#' @param pc2_colname (auto) parameter
-#' @return (auto) value; see function body.
+#' Calculate the minimum Euclidean distance from each cell to a set of reference
+#' points in PC space. This is used to quantify how far cells are from archetype
+#' vertices or polygon boundaries in archetype analysis.
+#'
+#' @param seurat_obj Seurat object with PCA computed.
+#' @param reference_df Data frame containing reference point coordinates. Must have
+#'   columns corresponding to PC coordinates (see pc1_colname, pc2_colname).
+#' @param pc1_colname Character string specifying the column name for PC1 coordinates
+#'   in reference_df (default: "PC_1"). Note: In some polygon exports, this may be
+#'   named differently (e.g., "X..X" from CSV header cleaning).
+#' @param pc2_colname Character string specifying the column name for PC2 coordinates
+#'   in reference_df (default: "PC_2"). Similarly may be named "Y" in some exports.
+#'
+#' @return Seurat object with new metadata column "min_distance_to_reference" containing
+#'   the Euclidean distance from each cell to its nearest reference point.
+#'
+#' @details
+#' **Distance calculation:**
+#' For each cell, computes the Euclidean distance to all reference points and stores
+#' the minimum. This can be used to:
+#' \itemize{
+#'   \item Identify cells near archetype vertices
+#'   \item Assess archetype quality (cells should be near vertices)
+#'   \item Correlate distance with mapping quality scores
+#' }
+#'
+#' **Typical workflow with ParTI archetypes:**
+#' \preformatted{
+#'   # 1. Fit archetype in MATLAB using ParTI
+#'   # 2. Export vertex coordinates (arcOrig)
+#'   # 3. Import as polygon in R
+#'   polygon <- read.csv("archetype_vertices.csv")
+#'   
+#'   # 4. Calculate distances
+#'   obj <- MinDistance(obj, polygon)
+#'   
+#'   # 5. Visualize: cells near vertices are specialists
+#'   FeaturePlot(obj, "min_distance_to_reference", reduction = "pca")
+#' }
+#'
+#' **Note on coordinate systems:**
+#' The reference_df coordinates must be in the same coordinate system as the
+#' Seurat PCA embeddings. For cross-species projections, ensure consistent
+#' transformations (e.g., sign flips) are applied to both cells and reference points.
+#'
 #' @export
 #' @family projection
+#'
 #' @examples
 #' \dontrun{
-#'  # Example usage will be added
+#'   # Load archetype polygon from MATLAB ParTI output
+#'   polygon <- read.csv("triangle_vertices.csv")
+#'   
+#'   # Close polygon for visualization
+#'   polygon <- rbind(polygon, polygon[1, ])
+#'   
+#'   # Calculate min distance to nearest vertex
+#'   obj.CGE <- MinDistance(obj.CGE, polygon, 
+#'                          pc1_colname = "X..X", 
+#'                          pc2_colname = "Y")
+#'   
+#'   # Visualize with polygon overlay
+#'   DimPlot(obj.CGE, reduction = "pca") +
+#'     geom_point(data = polygon, aes(x = X..X, y = Y), size = 3) +
+#'     geom_path(data = polygon, aes(x = X..X, y = Y), linetype = "dashed")
+#'   
+#'   # Correlation: cells near vertices have higher mapping quality?
+#'   FeaturePlot(obj.CGE, c("min_distance_to_reference", "predicted.subclass.score"),
+#'               reduction = "pca")
 #' }
 MinDistance <- function(seurat_obj, reference_df, pc1_colname = "PC_1", pc2_colname = "PC_2") {
   # Extract PC1 and PC2 coordinates from the Seurat object
